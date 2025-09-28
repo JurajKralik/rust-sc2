@@ -119,6 +119,7 @@ where
 	raw.effects = res_raw
 		.get_effects()
 		.iter()
+		.filter(|e| EffectId::from_u32(e.get_effect_id()).is_some())
 		.map(|e| Effect {
 			id: {
 				let id = e.get_effect_id();
@@ -150,6 +151,8 @@ where
 		let alliance = if bot.owned_tags.remove(u) {
 			bot.available_frames.write_lock().remove(u);
 			bot.under_construction.remove(u);
+			bot.last_units_hits.write_lock().remove(u);
+			bot.last_units_seen.write_lock().remove(u);
 			Some(Alliance::Own)
 		} else {
 			let removed = bot.saved_hallucinations.remove(u);
@@ -187,6 +190,7 @@ where
 	*raw.upgrades.write_lock() = raw_player
 		.get_upgrade_ids()
 		.iter()
+		.filter(|&u| UpgradeId::from_u32(*u).is_some())
 		.map(|u| UpgradeId::from_u32(*u).unwrap_or_else(|| panic!("There's no `UpgradeId` with value {}", u)))
 		.collect::<FxHashSet<_>>();
 

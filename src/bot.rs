@@ -12,7 +12,7 @@ use crate::{
 	game_state::Effect,
 	game_state::{Alliance, GameState},
 	geometry::{Point2, Point3},
-	ids::{AbilityId, EffectId, UnitTypeId, UpgradeId},
+	ids::{AbilityId, BuffId, EffectId, UnitTypeId, UpgradeId},
 	player::Race,
 	ramp::{Ramp, Ramps},
 	unit::{DataForUnit, SharedUnitData, Unit},
@@ -91,7 +91,7 @@ impl<T> Locked<T> for Rl<T> {
 			}
 			#[cfg(not(feature = "parking_lot"))]
 			{
-				self.read().unwrap()
+				self.read().unwrap_or_default()
 			}
 		}
 		#[cfg(not(feature = "rayon"))]
@@ -108,7 +108,7 @@ impl<T> Locked<T> for Rl<T> {
 			}
 			#[cfg(not(feature = "parking_lot"))]
 			{
-				self.write().unwrap()
+				self.write().unwrap_or_default()
 			}
 		}
 		#[cfg(not(feature = "rayon"))]
@@ -205,7 +205,7 @@ pub struct PlacementOptions {
 impl Default for PlacementOptions {
 	fn default() -> Self {
 		Self {
-			max_distance: 15,
+			max_distance: 17,
 			step: 2,
 			random: false,
 			addon: false,
@@ -457,7 +457,8 @@ pub struct Bot {
 	/// All expansions.
 	pub expansions: Vec<Expansion>,
 	max_cooldowns: Rw<FxHashMap<UnitTypeId, f32>>,
-	last_units_health: Rw<FxHashMap<u64, u32>>,
+	pub(crate) last_units_hits: Rw<FxHashMap<u64, u32>>,
+	pub(crate) last_units_seen: Rw<FxHashMap<u64, u32>>,
 	/// Obstacles on map which block vision of ground units, but still pathable.
 	pub vision_blockers: Vec<Point2>,
 	/// Ramps on map.
@@ -671,6 +672,10 @@ impl Bot {
 	pub fn has_upgrade(&self, upgrade: UpgradeId) -> bool {
 		self.state.observation.raw.upgrades.read_lock().contains(&upgrade)
 	}
+	/// Returns a set of upgrades.
+	pub fn upgrades(&self) -> Reader<FxHashSet<UpgradeId>> {
+		self.state.observation.raw.upgrades.read_lock()
+	}
 	/// Checks if predicted opponent's upgrades contains given upgrade.
 	pub fn enemy_has_upgrade(&self, upgrade: UpgradeId) -> bool {
 		self.enemy_upgrades.read_lock().contains(&upgrade)
@@ -681,10 +686,11 @@ impl Bot {
 	}
 	/// Checks if upgrade is in progress.
 	pub fn is_ordered_upgrade(&self, upgrade: UpgradeId) -> bool {
-		let ability = self.game_data.upgrades[&upgrade].ability;
-		self.orders
-			.get(&ability)
-			.copied()
+		// NOTE: Removed upgrades will return false
+		self.game_data
+			.upgrades
+			.get(&upgrade)
+			.and_then(|a| self.orders.get(&a.ability).copied())
 			.map_or(false, |count| count > 0)
 	}
 	/// Returns progress of making given upgrade.
@@ -740,6 +746,10 @@ impl Bot {
 			.copied()
 			.unwrap_or(0)
 	}
+	/// Returns terrain height difference between 2 points
+	pub fn get_height_diff<P: Into<(usize, usize)>>(&self, p1: P, p2: P) -> u8 {
+		self.get_height(p1).abs_diff(self.get_height(p2))
+	}
 	/// Checks if it's possible to build on given position.
 	pub fn is_placeable<P: Into<(usize, usize)>>(&self, pos: P) -> bool {
 		self.game_info
@@ -781,6 +791,39 @@ impl Bot {
 			.get(pos.into())
 			.map_or(false, |p| p.is_visible())
 	}
+	pub fn is_surround_visible<P: Into<(usize, usize)>>(&self, pos: P, range: isize) -> bool {
+		let center = pos.into();
+		for x in -range..=range {
+			for y in -range..=range {
+				let point = (
+					x.saturating_add(center.0 as isize) as usize,
+					y.saturating_add(center.1 as isize) as usize,
+				);
+				if !self.is_visible(point) {
+					return false;
+				}
+			}
+		}
+		true
+	}
+	pub fn has_creep_around<P: Into<(usize, usize)>>(&self, pos: P, range: isize) -> bool {
+		let center = pos.into();
+		for x in -range..=range {
+			for y in -range..=range {
+				if (x * x + y * y) > range * range {
+					continue;
+				}
+				let point = (
+					x.saturating_add(center.0 as isize) as usize,
+					y.saturating_add(center.1 as isize) as usize,
+				);
+				if !self.has_creep(point) {
+					return false;
+				}
+			}
+		}
+		true
+	}
 	/// Checks if given position is fully hidden
 	/// (terrain isn't visible, only darkness; only in campain and custom maps).
 	pub fn is_full_hidden<P: Into<(usize, usize)>>(&self, pos: P) -> bool {
@@ -811,7 +854,7 @@ impl Bot {
 			.map_or(false, |p| p.is_empty())
 	}
 	pub(crate) fn init_data_for_unit(&mut self) {
-		self.race = self.game_info.players[&self.player_id].race_actual.unwrap();
+		self.race = self.game_info.players[&self.player_id].race_actual.unwrap_or_default();
 		if self.game_info.players.len() == 2 {
 			let enemy_player_id = 3 - self.player_id;
 			self.enemy_race = self.game_info.players[&enemy_player_id].race_requested;
@@ -826,7 +869,8 @@ impl Bot {
 			reactor_tags: Rs::clone(&self.reactor_tags),
 			race_values: Rs::clone(&self.race_values),
 			max_cooldowns: Rs::clone(&self.max_cooldowns),
-			last_units_health: Rs::clone(&self.last_units_health),
+			last_units_hits: Rs::clone(&self.last_units_hits),
+			last_units_seen: Rs::clone(&self.last_units_seen),
 			abilities_units: Rs::clone(&self.abilities_units),
 			enemy_upgrades: Rs::clone(&self.enemy_upgrades),
 			upgrades: Rs::clone(&self.state.observation.raw.upgrades),
@@ -853,8 +897,8 @@ impl Bot {
 			(resources.sum(|r| r.position()) + self.enemy_start) / (resources.len() + 1) as f32;
 
 		// Calculating expansion locations
-
-		const RESOURCE_SPREAD: f32 = 72.25; // 8.5
+		const RESOURCE_SPREAD: f32 = 72.25f32; // 8.5
+		const HEIGHT_DIFFERENCE: u8 = 2; // SAME HEIGHT
 
 		let all_resources = self
 			.units
@@ -871,7 +915,9 @@ impl Bot {
 			range_query(
 				&positions,
 				|(p1, _), (p2, _)| p1.distance_squared(*p2),
+				|(p1, _), (p2, _)| self.get_height_diff(*p1, *p2),
 				RESOURCE_SPREAD,
+				HEIGHT_DIFFERENCE,
 			),
 			1,
 		)
@@ -887,9 +933,19 @@ impl Bot {
 
 		let mut expansions = resource_groups
 			.into_iter()
+			.filter(|group| group.len() > 1)
 			.map(|group| {
 				let resources = all_resources.find_tags(group.iter().map(|(_, tag)| tag));
-				let center = resources.center().unwrap().floor() + 0.5;
+				let resources_center = resources.center().unwrap_or_default().floor() + 0.5;
+				let center =
+					if resources.iter().any(|u| u.is_geyser()) && resources.iter().any(|u| !u.is_geyser()) {
+						((resources.iter().filter(|u| u.is_geyser()).center().unwrap_or_default()
+							+ resources.iter().filter(|u| !u.is_geyser()).center().unwrap_or_default())
+							/ 2f32)
+							.floor() + 0.5
+					} else {
+						resources.iter().center().unwrap_or_default().floor() + 0.5
+					};
 
 				let (loc, center, alliance, base) = if center.is_closer(4.0, self.start_center) {
 					(
@@ -904,30 +960,24 @@ impl Bot {
 					let location = offsets
 						.iter()
 						.filter_map(|(x, y)| {
-							let pos = center.offset(*x as f32, *y as f32);
+							let pos = resources_center.offset(*x as f32, *y as f32);
 							if self.is_placeable((pos.x as usize, pos.y as usize)) {
-								let mut distance_sum = 0_f32;
+								let mut max_distance = 0_f32;
 								let far_enough = |r: &Unit| {
 									let dist = pos.distance_squared(r);
-									distance_sum += dist;
+									max_distance = max_distance.max(dist.sqrt());
 									dist >= if r.is_geyser() { 49.0 } else { 36.0 }
 								};
 								if resources.iter().all(far_enough) {
-									return Some((pos, distance_sum));
+									return Some((pos, max_distance));
 								}
 							}
 							None
 						})
-						.min_by(|(_, d1), (_, d2)| d1.partial_cmp(d2).unwrap())
+						.min_by(|(_, d1), (_, d2)| d1.partial_cmp(d2).unwrap_or(std::cmp::Ordering::Equal))
 						.expect("Can't detect right position for expansion")
 						.0;
-
-					(
-						location,
-						(resources.sum(|r| r.position()) + location) / (resources.len() + 1) as f32,
-						Alliance::Neutral,
-						None,
-					)
+					(location, center, Alliance::Neutral, None)
 				};
 
 				let mut minerals = FxIndexSet::default();
@@ -941,7 +991,7 @@ impl Bot {
 				}
 				minerals.sort_by(|a, b| {
 					let dist = |t: &u64| resources[*t].position().distance_squared(loc);
-					dist(a).partial_cmp(&dist(b)).unwrap()
+					dist(a).partial_cmp(&dist(b)).unwrap_or(std::cmp::Ordering::Equal)
 				});
 
 				Expansion {
@@ -956,18 +1006,44 @@ impl Bot {
 			.collect::<Vec<_>>();
 
 		// Sort expansions by distance to start location
-		let start = Target::Pos(self.start_location);
-		let paths = self
-			.query_pathing(expansions.iter().map(|exp| (start, exp.loc)).collect())
-			.unwrap();
+		let start = Target::Pos(self.start_location.towards(self.game_info.map_center, -5f32));
+		let my_paths = self
+			.query_pathing(
+				expansions
+					.iter()
+					.map(|exp| (start, exp.loc.towards(self.game_info.map_center, -5f32)))
+					.collect(),
+			)
+			.unwrap_or_default();
+		let enemy_start = Target::Pos(self.enemy_start.towards(self.game_info.map_center, -5f32));
+		let enemy_paths = self
+			.query_pathing(
+				expansions
+					.iter()
+					.map(|exp| (enemy_start, exp.loc.towards(self.game_info.map_center, -5f32)))
+					.collect(),
+			)
+			.unwrap_or_default();
+
+		let paths: Vec<f32> = my_paths
+			.iter()
+			.zip(enemy_paths.iter())
+			.map(|(my_path, enemy_path)| {
+				my_path.unwrap_or(1_000_000f32) * 1.8f32 - enemy_path.unwrap_or(1_000_000f32)
+			})
+			.collect();
 
 		let paths = expansions
 			.iter()
 			.zip(paths)
-			.map(|(exp, path)| (exp.loc, path.unwrap_or(f32::INFINITY)))
+			.map(|(exp, path)| (exp.loc, path))
 			.collect::<FxHashMap<Point2, f32>>();
 
-		expansions.sort_unstable_by(|a, b| paths[&a.loc].partial_cmp(&paths[&b.loc]).unwrap());
+		expansions.sort_unstable_by(|a, b| {
+			paths[&a.loc]
+				.partial_cmp(&paths[&b.loc])
+				.unwrap_or(std::cmp::Ordering::Equal)
+		});
 
 		self.expansions = expansions;
 
@@ -1030,7 +1106,7 @@ impl Bot {
 		let get_closest_ramp = |loc: Point2| {
 			let (loc_x, loc_y) = <(usize, usize)>::from(loc);
 			let cmp = |r: &&Ramp| {
-				let (x, y) = r.top_center().unwrap();
+				let (x, y) = r.top_center().unwrap_or_default();
 				let dx = loc_x.abs_diff(x);
 				let dy = loc_y.abs_diff(y);
 				dx * dx + dy * dy
@@ -1112,11 +1188,27 @@ impl Bot {
 		self.orders = orders;
 	}
 	pub(crate) fn update_units(&mut self, all_units: Units) {
-		*self.last_units_health.write_lock() = self
+		*self.last_units_hits.write_lock() = self
 			.units
 			.all
 			.iter()
 			.filter_map(|u| Some((u.tag(), u.hits()?)))
+			.collect();
+
+		*self.last_units_seen.write_lock() = self
+			.units
+			.all
+			.iter()
+			.filter_map(|u| {
+				Some((
+					u.tag(),
+					self.last_units_seen
+						.read_lock()
+						.get(&u.tag())
+						.copied()
+						.unwrap_or_else(|| self.state.observation.game_loop()),
+				))
+			})
 			.collect();
 
 		self.units.clear();
@@ -1237,10 +1329,10 @@ impl Bot {
 						}
 					} else {
 						add_to!(units.units);
-						match u.type_id() {
-							UnitTypeId::SCV | UnitTypeId::Probe | UnitTypeId::Drone => add_to!(units.workers),
-							UnitTypeId::Larva => add_to!(units.larvas),
-							_ => {}
+						if u.is_worker() {
+							add_to!(units.workers);
+						} else if matches!(u.type_id(), UnitTypeId::Larva) {
+							add_to!(units.larvas);
 						}
 					}
 				}
@@ -1280,10 +1372,10 @@ impl Bot {
 						}
 					} else {
 						add_to!(units.units);
-						match u.type_id() {
-							UnitTypeId::SCV | UnitTypeId::Probe | UnitTypeId::Drone => add_to!(units.workers),
-							UnitTypeId::Larva => add_to!(units.larvas),
-							_ => {}
+						if u.is_worker() {
+							add_to!(units.workers);
+						} else if matches!(u.type_id(), UnitTypeId::Larva) {
+							add_to!(units.larvas);
 						}
 					}
 				}
@@ -1378,18 +1470,28 @@ impl Bot {
 									|| (s.type_id() == UnitTypeId::Extractor && s.is_ready()))
 									&& u.is_closer(u.radius() + s.radius() + 1.0, s)
 							};
+							let is_transport_close = |s: &Unit| {
+								(matches!(
+									s.type_id(),
+									UnitTypeId::Medivac
+										| UnitTypeId::WarpPrism | UnitTypeId::WarpPrismPhasing
+										| UnitTypeId::OverlordTransport
+								) && s.is_ready()) && u.is_closer(u.radius() + s.radius() + 1.5f32, s)
+							};
 							if enemy_is_zerg
 								&& !(u.is_flying()
-									|| matches!(
+									|| (matches!(
 										u.type_id(),
 										UnitTypeId::Changeling
 											| UnitTypeId::ChangelingZealot | UnitTypeId::ChangelingMarineShield
 											| UnitTypeId::ChangelingMarine | UnitTypeId::ChangelingZerglingWings
 											| UnitTypeId::ChangelingZergling | UnitTypeId::Broodling
 											| UnitTypeId::Larva | UnitTypeId::Egg
-									) || (u.type_id() == UnitTypeId::Drone
-									&& self.units.enemy.structures.iter().any(is_drone_close)))
-								&& is_invisible(u, &detectors, &scans, 0.0)
+									) && self.units.enemy.units.iter().any(is_transport_close))
+									|| (u.type_id() == UnitTypeId::Drone
+										&& self.units.enemy.structures.iter().any(is_drone_close)))
+								&& is_invisible(u, &detectors, &scans, 0f32)
+								&& self.is_surround_visible(u.position(), 2)
 							{
 								burrowed.push(u.tag());
 							// Whatever
@@ -1496,7 +1598,9 @@ impl Bot {
 
 		if !(enemy_detectors.is_empty() && enemy_scans.is_empty()) {
 			for u in &self.units.my.all {
-				if !(u.is_revealed() || is_invisible(u, &enemy_detectors, &enemy_scans, 1.0)) {
+				if !(u.is_revealed() || is_invisible(u, &enemy_detectors, &enemy_scans, 1.0))
+					|| u.has_buff(BuffId::OracleRevelation)
+				{
 					u.base.is_revealed.set_locked(true);
 				}
 			}
@@ -1510,7 +1614,8 @@ impl Bot {
 			vec![(self.game_data.units[&building].ability.unwrap(), pos, None)],
 			false,
 		)
-		.unwrap()[0] == ActionResult::Success
+		.unwrap_or_default()[0]
+			== ActionResult::Success
 	}
 	/// Simple wrapper around [`query_placement`](Self::query_placement).
 	/// Multi-version of [`can_place`](Self::can_place).
@@ -1522,7 +1627,7 @@ impl Bot {
 				.collect(),
 			false,
 		)
-		.unwrap()
+		.unwrap_or_default()
 		.into_iter()
 		.map(|r| r == ActionResult::Success)
 		.collect()
@@ -1552,7 +1657,7 @@ impl Bot {
 						},
 						false,
 					)
-					.unwrap()
+					.unwrap_or_default()
 					.iter()
 					.all(|r| matches!(r, ActionResult::Success))
 				{
@@ -1574,7 +1679,7 @@ impl Bot {
 						.collect::<Vec<Point2>>();
 					let results = self
 						.query_placement(positions.iter().map(|pos| (ability, *pos, None)).collect(), false)
-						.unwrap();
+						.unwrap_or_default();
 
 					let mut valid_positions = positions
 						.iter()
@@ -1599,7 +1704,7 @@ impl Bot {
 									.collect(),
 								false,
 							)
-							.unwrap();
+							.unwrap_or_default();
 						valid_positions = valid_positions
 							.into_iter()
 							.zip(results.into_iter())
@@ -1633,7 +1738,7 @@ impl Bot {
 				geysers.iter().map(|u| (ability, u.position(), None)).collect(),
 				false,
 			)
-			.unwrap();
+			.unwrap_or_default();
 
 		geysers
 			.into_iter()
@@ -1654,13 +1759,13 @@ impl Bot {
 		let start = Target::Pos(self.enemy_start);
 		let paths = self
 			.query_pathing(expansions.iter().map(|exp| (start, exp.loc)).collect())
-			.unwrap();
+			.unwrap_or_default();
 
 		expansions
 			.into_iter()
 			.zip(paths)
 			.filter_map(|(exp, path)| Some((exp, path?)))
-			.min_by(|(_, path1), (_, path2)| path1.partial_cmp(path2).unwrap())
+			.min_by(|(_, path1), (_, path2)| path1.partial_cmp(path2).unwrap_or(std::cmp::Ordering::Equal))
 			.map(|(exp, _)| exp)
 	}
 	/// Returns all [`expansions`](Self::expansions) taken by bot.
@@ -1728,7 +1833,7 @@ impl Bot {
 
 		for (ability, pos, builder) in places {
 			let mut placement = RequestQueryBuildingPlacement::new();
-			placement.set_ability_id(ability.to_i32().unwrap());
+			placement.set_ability_id(ability.to_i32().unwrap_or_default());
 			placement.set_target_pos(pos.into_proto());
 			if let Some(tag) = builder {
 				placement.set_placing_unit_tag(tag);
@@ -1820,7 +1925,8 @@ impl Default for Bot {
 			reactor_tags: Default::default(),
 			expansions: Default::default(),
 			max_cooldowns: Default::default(),
-			last_units_health: Default::default(),
+			last_units_hits: Default::default(),
+			last_units_seen: Default::default(),
 			vision_blockers: Default::default(),
 			ramps: Default::default(),
 			enemy_upgrades: Default::default(),

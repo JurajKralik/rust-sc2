@@ -1,7 +1,7 @@
 #![allow(deprecated)]
 
 #[cfg(feature = "serde")]
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Debug, FromPrimitive, ToPrimitive, Copy, Clone, PartialEq, Eq, Hash)]
@@ -305,7 +305,7 @@ pub enum BuffId {
 	AmorphousArmorcloud = 296,
 	RavenShredderMissileArmorReductionUISubtruct = 297,
 	BatteryOvercharge = 298,
-	DummyBuff001 = 299,
+	ImmortalShield = 299,
 	DummyBuff002 = 300,
 	DummyBuff003 = 301,
 	DummyBuff004 = 302,

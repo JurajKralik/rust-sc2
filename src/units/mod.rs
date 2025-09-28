@@ -256,6 +256,22 @@ impl Units {
 	pub fn of_type(&self, unit_type: UnitTypeId) -> Self {
 		self.filter(|u| u.type_id() == unit_type)
 	}
+	/// Leaves only units of given type and makes a new collection of them and its aliases.
+	///
+	/// Warning: This method will clone units in order to create a new collection
+	/// and will be evaluated initially. When applicable prefer using [`of_type_and_alias`]
+	/// on the iterator over units, since it's lazily evaluated and doesn't do any cloning operations.
+	///
+	/// [`of_type`]: UnitsIterator::of_type
+	pub fn of_type_including_alias(&self, unit_type: UnitTypeId) -> Self {
+		self.filter(|u| {
+			if let Some(alias) = UNIT_ALIAS.get(&unit_type) {
+				u.type_id() == unit_type || u.type_id() == *alias
+			} else {
+				u.type_id() == unit_type
+			}
+		})
+	}
 	/// Excludes all units of given type and makes a new collection of remaining units.
 	///
 	/// Warning: This method will clone units in order to create a new collection
@@ -522,7 +538,7 @@ use std::cmp::Ordering;
 
 #[inline]
 fn cmp<T: PartialOrd>(a: &T, b: &T) -> Ordering {
-	a.partial_cmp(b).unwrap()
+	a.partial_cmp(b).unwrap_or(Ordering::Equal)
 }
 
 #[cfg(not(feature = "rayon"))]
@@ -532,7 +548,7 @@ where
 	T: PartialOrd,
 	F: Fn(&U) -> T,
 {
-	move |a, b| f(a).partial_cmp(&f(b)).unwrap()
+	move |a, b| f(a).partial_cmp(&f(b)).unwrap_or(Ordering::Equal)
 }
 
 #[inline]
@@ -541,7 +557,7 @@ where
 	T: PartialOrd,
 	F: Fn(&V) -> T,
 {
-	move |_, a, _, b| f(a).partial_cmp(&f(b)).unwrap()
+	move |_, a, _, b| f(a).partial_cmp(&f(b)).unwrap_or(Ordering::Equal)
 }
 
 #[cfg(not(feature = "rayon"))]
@@ -687,6 +703,7 @@ pub trait Container<T> {
 	fn contains(&self, item: &T) -> bool;
 }
 
+use crate::consts::UNIT_ALIAS;
 use std::{
 	collections::{BTreeMap, BTreeSet, HashMap, HashSet},
 	hash::{BuildHasher, Hash},

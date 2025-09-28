@@ -27,6 +27,21 @@ use sc2_proto::raw::{
 	CloakState as ProtoCloakState, DisplayType as ProtoDisplayType, Unit as ProtoUnit,
 	UnitOrder_oneof_target as ProtoTarget,
 };
+use std::cmp::Ordering;
+use crate::consts::ON_CREEP_SPEED_UPGRADES;
+
+#[derive(Default, Debug, Clone, Copy)]
+pub struct WeaponStats {
+	pub damage: u32,
+	pub speed: f32,
+	pub range: f32,
+}
+
+impl WeaponStats {
+	pub fn dps(&self) -> f32 {
+		self.damage as f32 / self.speed
+	}
+}
 
 #[derive(Default, Clone)]
 pub(crate) struct DataForUnit {
@@ -36,7 +51,8 @@ pub(crate) struct DataForUnit {
 	pub reactor_tags: Rw<FxHashSet<u64>>,
 	pub race_values: Rs<RaceValues>,
 	pub max_cooldowns: Rw<FxHashMap<UnitTypeId, f32>>,
-	pub last_units_health: Rw<FxHashMap<u64, u32>>,
+	pub last_units_hits: Rw<FxHashMap<u64, u32>>,
+	pub last_units_seen: Rw<FxHashMap<u64, u32>>,
 	pub abilities_units: Rw<FxHashMap<u64, FxHashSet<AbilityId>>>,
 	pub upgrades: Rw<FxHashSet<UpgradeId>>,
 	pub enemy_upgrades: Rw<FxHashSet<UpgradeId>>,
@@ -96,7 +112,9 @@ pub(crate) struct UnitBase {
 
 	// cache
 	real_speed: LazyInit<f32>,
-	real_weapon_vs: Lazy<CacheMap<u64, (f32, f32)>>,
+	on_creep_speed: LazyInit<f32>,
+	off_creep_speed: LazyInit<f32>,
+	real_weapon_vs: Lazy<CacheMap<u64, WeaponStats>>,
 }
 
 /// Weapon target used in [`calculate_weapon_stats`](Unit::calculate_weapon_stats).
@@ -419,7 +437,7 @@ impl Unit {
 	fn type_data(&self) -> Option<&UnitTypeData> {
 		self.data.game_data.units.get(&self.type_id())
 	}
-	fn upgrades(&self) -> Reader<FxHashSet<UpgradeId>> {
+	pub fn upgrades(&self) -> Reader<FxHashSet<UpgradeId>> {
 		if self.is_mine() {
 			self.data.upgrades.read_lock()
 		} else {
@@ -494,7 +512,7 @@ impl Unit {
 	}
 	/// Unit was attacked on last step.
 	pub fn is_attacked(&self) -> bool {
-		self.hits() < self.data.last_units_health.read_lock().get(&self.tag()).copied()
+		self.hits() < self.data.last_units_hits.read_lock().get(&self.tag()).copied()
 	}
 	/// The damage was taken by unit if it was attacked, otherwise it's `0`.
 	pub fn damage_taken(&self) -> u32 {
@@ -502,11 +520,19 @@ impl Unit {
 			Some(hits) => hits,
 			None => return 0,
 		};
-		let last_hits = match self.data.last_units_health.read_lock().get(&self.tag()).copied() {
+		let last_hits = match self.data.last_units_hits.read_lock().get(&self.tag()).copied() {
 			Some(hits) => hits,
 			None => return 0,
 		};
 		last_hits.saturating_sub(hits)
+	}
+	/// Unit was attacked on last step.
+	pub fn time_alive(&self) -> u32 {
+		if let Some(initially_seen) = self.data.last_units_seen.read_lock().get(&self.tag()).copied() {
+			self.data.game_loop.get_locked().saturating_sub(initially_seen)
+		} else {
+			0
+		}
 	}
 	/// Abilities available for unit to use.
 	///
@@ -628,6 +654,10 @@ impl Unit {
 	pub fn supply_cost(&self) -> f32 {
 		self.type_data().map_or(0.0, |data| data.food_required)
 	}
+	/// Returns how much supply this unit uses.
+	pub fn supply_provided(&self) -> f32 {
+		self.type_data().map_or(0.0, |data| data.food_provided)
+	}
 	/// Returns cost of unit.
 	pub fn cost(&self) -> Cost {
 		self.type_data().map_or(Cost::default(), |data| data.cost())
@@ -666,10 +696,15 @@ impl Unit {
 	///
 	/// Not populated for snapshots.
 	pub fn hits(&self) -> Option<u32> {
+		let extra_shield = if self.has_buff(BuffId::ImmortalShield) {
+			100
+		} else {
+			0
+		};
 		match (self.health(), self.shield()) {
-			(Some(health), Some(shield)) => Some(health + shield),
-			(Some(health), None) => Some(health),
-			(None, Some(shield)) => Some(shield),
+			(Some(health), Some(shield)) => Some(health + shield + extra_shield),
+			(Some(health), None) => Some(health + extra_shield),
+			(None, Some(shield)) => Some(shield + extra_shield),
 			(None, None) => None,
 		}
 	}
@@ -702,8 +737,43 @@ impl Unit {
 	pub fn speed(&self) -> f32 {
 		self.type_data().map_or(0.0, |data| data.movement_speed)
 	}
+	pub fn is_unit_on_creep(&self) -> bool {
+		self.data.creep.read_lock()[self.position()].is_empty()
+	}
+	pub fn on_creep_speed(&self) -> f32 {
+		*self.base.on_creep_speed.get_or_create(|| {
+			let unit_type = self.type_id();
+			let mut base_speed = self.base_real_speed();
+			let upgrades = self.upgrades();
+			// Hydralisks speed upgrade bonus is lower on creep
+			if let Some((upgrade_id, increase)) = ON_CREEP_SPEED_UPGRADES.get(&unit_type) {
+				if upgrades.contains(upgrade_id) {
+					base_speed *= increase;
+				}
+			}
+			if let Some(increase) = SPEED_ON_CREEP.get(&unit_type) {
+				return base_speed * increase;
+			}
+			base_speed
+		})
+	}
+	pub fn off_creep_speed(&self) -> f32 {
+		*self.base.off_creep_speed.get_or_create(|| {
+			let unit_type = self.type_id();
+
+			// Off creep upgrades
+			let upgrades = self.upgrades();
+			let base_speed = self.base_real_speed();
+			if let Some((upgrade_id, increase)) = OFF_CREEP_SPEED_UPGRADES.get(&unit_type) {
+				if upgrades.contains(upgrade_id) {
+					return base_speed * increase;
+				}
+			}
+			base_speed
+		})
+	}
 	/// Returns actual speed of the unit calculated including buffs and upgrades.
-	pub fn real_speed(&self) -> f32 {
+	pub fn base_real_speed(&self) -> f32 {
 		*self.base.real_speed.get_or_create(|| {
 			let mut speed = self.speed();
 			let unit_type = self.type_id();
@@ -732,24 +802,16 @@ impl Unit {
 				}
 			}
 
-			// ---- Creep ----
-			// On creep
-			if self.data.creep.read_lock()[self.position()].is_set() {
-				if let Some(increase) = SPEED_ON_CREEP.get(&unit_type) {
-					speed *= increase;
-				}
-			}
-			// Off creep upgrades
-			if !upgrades.is_empty() {
-				if let Some((upgrade_id, increase)) = OFF_CREEP_SPEED_UPGRADES.get(&unit_type) {
-					if upgrades.contains(upgrade_id) {
-						speed *= increase;
-					}
-				}
-			}
-
 			speed
 		})
+	}
+	/// Returns actual speed of the unit calculated including buffs and upgrades.
+	pub fn real_speed(&self) -> f32 {
+		if self.is_unit_on_creep() {
+			self.on_creep_speed()
+		} else {
+			self.off_creep_speed()
+		}
 	}
 	/// Distance unit can travel per one step.
 	pub fn distance_per_step(&self) -> f32 {
@@ -1000,7 +1062,7 @@ impl Unit {
 			weapons
 				.iter()
 				.map(|w| w.range)
-				.max_by(|r1, r2| r1.partial_cmp(r2).unwrap())
+				.max_by(|r1, r2| r1.partial_cmp(r2).unwrap_or(Ordering::Equal))
 				.unwrap_or(0.0)
 		} else {
 			let not_target = {
@@ -1090,13 +1152,34 @@ impl Unit {
 				}
 				UnitTypeId::Phoenix => {
 					if upgrades.contains(&UpgradeId::PhoenixRangeUpgrade) {
-						return w.range + 2.0;
+						return w.range + 2f32;
 					}
 				}
 				UnitTypeId::PlanetaryFortress | UnitTypeId::MissileTurret | UnitTypeId::AutoTurret => {
 					if upgrades.contains(&UpgradeId::HiSecAutoTracking) {
-						return w.range + 1.0;
+						return w.range + 1f32;
 					}
+				}
+				UnitTypeId::Colossus => {
+					if upgrades.contains(&UpgradeId::ExtendedThermalLance) {
+						return w.range + 2f32;
+					}
+				}
+				UnitTypeId::Ghost => {
+					// TODO: Is it possible to get energy cost from Ability data?
+					let ability = self
+						.data
+						.game_data
+						.abilities
+						.get(&AbilityId::EffectGhostSnipe)
+						.unwrap();
+					return if self.has_buff(BuffId::ChannelSnipeCombat) {
+						ability.cast_range.unwrap_or_default() + 4f32
+					} else if self.energy().unwrap_or_default() >= 50 {
+						ability.cast_range.unwrap_or_default()
+					} else {
+						w.range
+					};
 				}
 				_ => {}
 			}
@@ -1107,7 +1190,7 @@ impl Unit {
 			weapons
 				.iter()
 				.map(extract_range)
-				.max_by(|r1, r2| r1.partial_cmp(r2).unwrap())
+				.max_by(|r1, r2| r1.partial_cmp(r2).unwrap_or(Ordering::Equal))
 				.unwrap_or(0.0)
 		} else {
 			let not_target = {
@@ -1154,7 +1237,7 @@ impl Unit {
 			weapons
 				.iter()
 				.map(extract_dps)
-				.max_by(|d1, d2| d1.partial_cmp(d2).unwrap())
+				.max_by(|d1, d2| d1.partial_cmp(d2).unwrap_or(Ordering::Equal))
 				.unwrap_or(0.0)
 		} else {
 			let not_target = {
@@ -1179,21 +1262,21 @@ impl Unit {
 	/// [`real_range_vs`]: Self::real_range_vs
 	/// [`real_ground_range`]: Self::real_ground_range
 	/// [`real_air_range`]: Self::real_air_range
-	pub fn real_weapon(&self, attributes: &[Attribute]) -> (f32, f32) {
+	pub fn real_weapon(&self, attributes: &[Attribute]) -> WeaponStats {
 		self.calculate_weapon_stats(CalcTarget::Abstract(TargetType::Any, attributes))
 	}
 	/// Returns (dps, range) of unit's ground weapon including bonuses from buffs and upgrades.
 	///
 	/// If you need to get only real range of unit, use [`real_ground_range`](Self::real_ground_range)
 	/// instead, because it's generally faster.
-	pub fn real_ground_weapon(&self, attributes: &[Attribute]) -> (f32, f32) {
+	pub fn real_ground_weapon(&self, attributes: &[Attribute]) -> WeaponStats {
 		self.calculate_weapon_stats(CalcTarget::Abstract(TargetType::Ground, attributes))
 	}
 	/// Returns (dps, range) of unit's air weapon including bonuses from buffs and upgrades.
 	///
 	/// If you need to get only real range of unit, use [`real_air_range`](Self::real_air_range)
 	/// instead, because it's generally faster.
-	pub fn real_air_weapon(&self, attributes: &[Attribute]) -> (f32, f32) {
+	pub fn real_air_weapon(&self, attributes: &[Attribute]) -> WeaponStats {
 		self.calculate_weapon_stats(CalcTarget::Abstract(TargetType::Air, attributes))
 	}
 	/// Returns (dps, range) of unit's weapon vs given target if unit can attack it, otherwise returs `(0, 0)`.
@@ -1201,7 +1284,7 @@ impl Unit {
 	///
 	/// If you need to get only real range of unit, use [`real_range_vs`](Self::real_range_vs)
 	/// instead, because it's generally faster.
-	pub fn real_weapon_vs(&self, target: &Unit) -> (f32, f32) {
+	pub fn real_weapon_vs(&self, target: &Unit) -> WeaponStats {
 		self.base.real_weapon_vs.get_or_create(&target.tag(), || {
 			self.calculate_weapon_stats(CalcTarget::Unit(target))
 		})
@@ -1217,7 +1300,11 @@ impl Unit {
 	/// [`real_range_vs`]: Self::real_range_vs
 	/// [`real_ground_range`]: Self::real_ground_range
 	/// [`real_air_range`]: Self::real_air_range
-	pub fn calculate_weapon_abstract(&self, target_type: TargetType, attributes: &[Attribute]) -> (f32, f32) {
+	pub fn calculate_weapon_abstract(
+		&self,
+		target_type: TargetType,
+		attributes: &[Attribute],
+	) -> WeaponStats {
 		self.calculate_weapon_stats(CalcTarget::Abstract(target_type, attributes))
 	}
 
@@ -1231,7 +1318,7 @@ impl Unit {
 	/// [`real_ground_range`]: Self::real_ground_range
 	/// [`real_air_range`]: Self::real_air_range
 	#[allow(clippy::mut_range_bound)]
-	pub fn calculate_weapon_stats(&self, target: CalcTarget) -> (f32, f32) {
+	pub fn calculate_weapon_stats(&self, target: CalcTarget) -> WeaponStats {
 		let (upgrades, target_upgrades) = {
 			let my_upgrades = self.data.upgrades.read_lock();
 			let enemy_upgrades = self.data.enemy_upgrades.read_lock();
@@ -1241,6 +1328,13 @@ impl Unit {
 				(enemy_upgrades, my_upgrades)
 			}
 		};
+		if matches!(self.type_id(), UnitTypeId::Oracle) && !self.has_buff(BuffId::OracleWeapon) {
+			return WeaponStats {
+				damage: 0,
+				speed: 0f32,
+				range: 0f32,
+			};
+		}
 
 		let (not_target, attributes, target_unit) = match target {
 			CalcTarget::Unit(target) => {
@@ -1306,7 +1400,11 @@ impl Unit {
 
 		let weapons = self.weapons();
 		if weapons.is_empty() {
-			return (0.0, 0.0);
+			return WeaponStats {
+				damage: 0,
+				speed: 0f32,
+				range: 0f32,
+			};
 		}
 
 		let mut speed_modifier = 1.0;
@@ -1339,6 +1437,11 @@ impl Unit {
 				}
 				UnitTypeId::Phoenix => {
 					if upgrades.contains(&UpgradeId::PhoenixRangeUpgrade) {
+						range_modifier += 2.0;
+					}
+				}
+				UnitTypeId::LurkerMPBurrowed => {
+					if upgrades.contains(&UpgradeId::LurkerRange) {
 						range_modifier += 2.0;
 					}
 				}
@@ -1396,7 +1499,7 @@ impl Unit {
 						None
 					}
 				})
-				.max_by(|b1, b2| b1.partial_cmp(b2).unwrap())
+				.max_by(|b1, b2| b1.partial_cmp(b2).unwrap_or(Ordering::Equal))
 			{
 				damage += bonus;
 			}
@@ -1461,7 +1564,11 @@ impl Unit {
 				.max_by_key(|k| k.0)
 				.unwrap_or((0, 0.0, 0.0))
 		};
-		(if speed == 0.0 { 0.0 } else { damage as f32 / speed }, range)
+		WeaponStats {
+			damage: if speed == 0f32 { 0 } else { damage },
+			speed,
+			range,
+		}
 	}
 
 	/// Checks if unit is close enough to attack given target.
@@ -1474,7 +1581,7 @@ impl Unit {
 					.weapons()
 					.iter()
 					.map(|w| w.range)
-					.max_by(|r1, r2| r1.partial_cmp(r2).unwrap())
+					.max_by(|r1, r2| r1.partial_cmp(r2).unwrap_or(Ordering::Equal))
 				{
 					Some(max_range) => max_range,
 					None => return false,
@@ -1699,6 +1806,17 @@ impl Unit {
 			_ => false,
 		})
 	}
+
+	/// Checks if worker is currently constructing a specific building.
+	///
+	/// Doesn't work with enemies.
+	pub fn is_constructing_any(&self, unit_types: &Vec<UnitTypeId>) -> bool {
+		unit_types
+			.iter()
+			.map(|t| self.data.game_data.units.get(t).and_then(|data| data.ability))
+			.any(|a| a.is_some() && self.is_using(a.unwrap()))
+	}
+
 	/// Checks if terran building is currently making addon.
 	///
 	/// Doesn't work with enemies.
@@ -1964,6 +2082,7 @@ impl Unit {
 				buffs: u
 					.get_buff_ids()
 					.iter()
+					.filter(|&b| BuffId::from_u32(*b).is_some())
 					.map(|b| {
 						BuffId::from_u32(*b).unwrap_or_else(|| panic!("There's no `BuffId` with value {}", b))
 					})
@@ -1998,6 +2117,7 @@ impl Unit {
 				orders: u
 					.get_orders()
 					.iter()
+					.filter(|order| AbilityId::from_u32(order.get_ability_id()).is_some())
 					.map(|order| UnitOrder {
 						ability: {
 							let id = order.get_ability_id();
@@ -2052,6 +2172,8 @@ impl Unit {
 
 				// cache
 				real_speed: Default::default(),
+				on_creep_speed: Default::default(),
+				off_creep_speed: Default::default(),
 				real_weapon_vs: Default::default(),
 			}),
 		}
@@ -2085,7 +2207,7 @@ impl FromProto<ProtoDisplayType> for DisplayType {
 }
 
 /// Order given to unit. All current orders of unit stored in [`orders`](Unit::orders) field.
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct UnitOrder {
 	/// Ability unit is using.
 	pub ability: AbilityId,
@@ -2096,7 +2218,7 @@ pub struct UnitOrder {
 }
 
 /// Unit inside transport or bunker. All passengers stored in [`passengers`](Unit::passengers) field.
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct PassengerUnit {
 	pub tag: u64,
 	pub health: f32,
