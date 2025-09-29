@@ -661,33 +661,33 @@ impl Unit {
 	}
 	/// Returns health percentage (current health divided by max health).
 	/// Value in range from `0` to `1`.
-	pub fn health_percentage(&self) -> Option<f32> {
+	pub fn health_percentage(&self) -> f32 {
 		let current = self.health();
 		let max = self.health_max();
 		if max == 0 {
-			return None;
+			return 0.0;
 		}
-		Some(current as f32 / max as f32)
+		current as f32 / max as f32
 	}
 	/// Returns shield percentage (current shield divided by max shield).
 	/// Value in range from `0` to `1`.
-	pub fn shield_percentage(&self) -> Option<f32> {
+	pub fn shield_percentage(&self) -> f32 {
 		let current = self.shield();
 		let max = self.shield_max();
 		if max == 0 {
-			return None;
+			return 0.0;
 		}
-		Some(current as f32 / max as f32)
+		current as f32 / max as f32
 	}
 	/// Returns energy percentage (current energy divided by max energy).
 	/// Value in range from `0` to `1`.
-	pub fn energy_percentage(&self) -> Option<f32> {
+	pub fn energy_percentage(&self) -> f32 {
 		let current = self.energy();
 		let max = self.energy_max();
 		if max == 0 {
-			return None;
+			return 0.0;
 		}
-		Some(current as f32 / max as f32)
+		current as f32 / max as f32
 	}
 	/// Returns summed health and shield.
 	///
