@@ -86,14 +86,14 @@ pub(crate) struct UnitBase {
 	pub attack_upgrade_level: u32,
 	pub armor_upgrade_level: i32,
 	pub shield_upgrade_level: i32,
-	pub health: Option<u32>,
-	pub health_max: Option<u32>,
-	pub shield: Option<u32>,
-	pub shield_max: Option<u32>,
-	pub energy: Option<u32>,
-	pub energy_max: Option<u32>,
-	pub mineral_contents: Option<u32>,
-	pub vespene_contents: Option<u32>,
+	pub health: u32,
+	pub health_max: u32,
+	pub shield: u32,
+	pub shield_max: u32,
+	pub energy: u32,
+	pub energy_max: u32,
+	pub mineral_contents: u32,
+	pub vespene_contents: u32,
 	pub is_flying: bool,
 	pub is_burrowed: LockBool,
 	pub is_hallucination: LockBool,
@@ -275,56 +275,56 @@ impl Unit {
 	///
 	/// Note: Not populated for snapshots.
 	#[inline]
-	pub fn health(&self) -> Option<u32> {
+	pub fn health(&self) -> u32 {
 		self.base.health
 	}
 	/// Maximum health of unit.
 	///
 	/// Note: Not populated for snapshots.
 	#[inline]
-	pub fn health_max(&self) -> Option<u32> {
+	pub fn health_max(&self) -> u32 {
 		self.base.health_max
 	}
 	/// Current shield of protoss unit.
 	///
 	/// Note: Not populated for snapshots.
 	#[inline]
-	pub fn shield(&self) -> Option<u32> {
+	pub fn shield(&self) -> u32 {
 		self.base.shield
 	}
 	/// Maximum shield of protoss unit.
 	///
 	/// Note: Not populated for snapshots.
 	#[inline]
-	pub fn shield_max(&self) -> Option<u32> {
+	pub fn shield_max(&self) -> u32 {
 		self.base.shield_max
 	}
 	/// Current energy of caster unit.
 	///
 	/// Note: Not populated for snapshots.
 	#[inline]
-	pub fn energy(&self) -> Option<u32> {
+	pub fn energy(&self) -> u32 {
 		self.base.energy
 	}
 	/// Maximum energy of caster unit.
 	///
 	/// Note: Not populated for snapshots.
 	#[inline]
-	pub fn energy_max(&self) -> Option<u32> {
+	pub fn energy_max(&self) -> u32 {
 		self.base.energy_max
 	}
 	/// Amount of minerals left in mineral field.
 	///
 	/// Note: Not populated for snapshots.
 	#[inline]
-	pub fn mineral_contents(&self) -> Option<u32> {
+	pub fn mineral_contents(&self) -> u32 {
 		self.base.mineral_contents
 	}
 	/// Amount of vespene gas left in vespene geyser.
 	///
 	/// Note: Not populated for snapshots.
 	#[inline]
-	pub fn vespene_contents(&self) -> Option<u32> {
+	pub fn vespene_contents(&self) -> u32 {
 		self.base.vespene_contents
 	}
 	/// Unit is flying.
@@ -512,14 +512,11 @@ impl Unit {
 	}
 	/// Unit was attacked on last step.
 	pub fn is_attacked(&self) -> bool {
-		self.hits() < self.data.last_units_hits.read_lock().get(&self.tag()).copied()
+		self.hits() < self.data.last_units_hits.read_lock().get(&self.tag()).copied().unwrap_or(0)
 	}
 	/// The damage was taken by unit if it was attacked, otherwise it's `0`.
 	pub fn damage_taken(&self) -> u32 {
-		let hits = match self.hits() {
-			Some(hits) => hits,
-			None => return 0,
-		};
+		let hits = self.hits();
 		let last_hits = match self.data.last_units_hits.read_lock().get(&self.tag()).copied() {
 			Some(hits) => hits,
 			None => return 0,
@@ -665,8 +662,8 @@ impl Unit {
 	/// Returns health percentage (current health divided by max health).
 	/// Value in range from `0` to `1`.
 	pub fn health_percentage(&self) -> Option<f32> {
-		let current = self.health()?;
-		let max = self.health_max()?;
+		let current = self.health();
+		let max = self.health_max();
 		if max == 0 {
 			return None;
 		}
@@ -675,8 +672,8 @@ impl Unit {
 	/// Returns shield percentage (current shield divided by max shield).
 	/// Value in range from `0` to `1`.
 	pub fn shield_percentage(&self) -> Option<f32> {
-		let current = self.shield()?;
-		let max = self.shield_max()?;
+		let current = self.shield();
+		let max = self.shield_max();
 		if max == 0 {
 			return None;
 		}
@@ -685,8 +682,8 @@ impl Unit {
 	/// Returns energy percentage (current energy divided by max energy).
 	/// Value in range from `0` to `1`.
 	pub fn energy_percentage(&self) -> Option<f32> {
-		let current = self.energy()?;
-		let max = self.energy_max()?;
+		let current = self.energy();
+		let max = self.energy_max();
 		if max == 0 {
 			return None;
 		}
@@ -695,41 +692,31 @@ impl Unit {
 	/// Returns summed health and shield.
 	///
 	/// Not populated for snapshots.
-	pub fn hits(&self) -> Option<u32> {
+	pub fn hits(&self) -> u32 {
 		let extra_shield = if self.has_buff(BuffId::ImmortalShield) {
 			100
 		} else {
 			0
 		};
-		match (self.health(), self.shield()) {
-			(Some(health), Some(shield)) => Some(health + shield + extra_shield),
-			(Some(health), None) => Some(health + extra_shield),
-			(None, Some(shield)) => Some(shield + extra_shield),
-			(None, None) => None,
-		}
+		self.health() + self.shield() + extra_shield
 	}
 	/// Returns summed max health and max shield.
 	///
 	/// Not populated for snapshots.
-	pub fn hits_max(&self) -> Option<u32> {
-		match (self.health_max(), self.shield_max()) {
-			(Some(health), Some(shield)) => Some(health + shield),
-			(Some(health), None) => Some(health),
-			(None, Some(shield)) => Some(shield),
-			(None, None) => None,
-		}
+	pub fn hits_max(&self) -> u32 {
+		self.health_max() + self.shield_max()
 	}
 	/// Returns percentage of summed health and shield (current hits divided by max hits).
 	/// Value in range from `0` to `1`.
 	///
 	/// Not populated for snapshots.
-	pub fn hits_percentage(&self) -> Option<f32> {
-		let current = self.hits()?;
-		let max = self.hits_max()?;
+	pub fn hits_percentage(&self) -> f32 {
+		let current = self.hits();
+		let max = self.hits_max();
 		if max == 0 {
-			return None;
+			return 0.0;
 		}
-		Some(current as f32 / max as f32)
+		current as f32 / max as f32
 	}
 	/// Basic speed of the unit without considering buffs and upgrades.
 	///
@@ -1175,7 +1162,7 @@ impl Unit {
 						.unwrap();
 					return if self.has_buff(BuffId::ChannelSnipeCombat) {
 						ability.cast_range.unwrap_or_default() + 4f32
-					} else if self.energy().unwrap_or_default() >= 50 {
+					} else if self.energy() >= 50 {
 						ability.cast_range.unwrap_or_default()
 					} else {
 						w.range
@@ -1510,39 +1497,37 @@ impl Unit {
 					let mut attacks = w.attacks;
 					let mut shield_damage = 0;
 					let mut health_damage = 0;
+					let enemy_shield = target.shield();
+					let enemy_health = target.health();
 
-					if let Some(enemy_shield) = target.shield().filter(|shield| shield > &0) {
-						let enemy_shield_armor = if target_has_guardian_shield && range >= 2.0 {
-							enemy_shield_armor + 2
-						} else {
-							enemy_shield_armor
-						};
-						let exact_damage = 1.max(damage as i32 - enemy_shield_armor) as u32;
+					let enemy_shield_armor = if target_has_guardian_shield && range >= 2.0 {
+						enemy_shield_armor + 2
+					} else {
+						enemy_shield_armor
+					};
+					let exact_damage = 1.max(damage as i32 - enemy_shield_armor) as u32;
 
-						for _ in 0..attacks {
-							if shield_damage >= enemy_shield {
-								health_damage = shield_damage - enemy_shield;
-								break;
-							}
-							shield_damage += exact_damage;
-							attacks -= 1;
+					for _ in 0..attacks {
+						if shield_damage >= enemy_shield {
+							health_damage = shield_damage - enemy_shield;
+							break;
 						}
+						shield_damage += exact_damage;
+						attacks -= 1;
 					}
+					
+					let enemy_armor = if target_has_guardian_shield && range >= 2.0 {
+						enemy_armor + 2
+					} else {
+						enemy_armor
+					};
+					let exact_damage = 1.max(damage as i32 - enemy_armor) as u32;
 
-					if let Some(enemy_health) = target.health().filter(|health| health > &0) {
-						let enemy_armor = if target_has_guardian_shield && range >= 2.0 {
-							enemy_armor + 2
-						} else {
-							enemy_armor
-						};
-						let exact_damage = 1.max(damage as i32 - enemy_armor) as u32;
-
-						for _ in 0..attacks {
-							if health_damage >= enemy_health {
-								break;
-							}
-							health_damage += exact_damage;
+					for _ in 0..attacks {
+						if health_damage >= enemy_health {
+							break;
 						}
+						health_damage += exact_damage;
 					}
 
 					(shield_damage + health_damage, speed, range)
@@ -2102,14 +2087,14 @@ impl Unit {
 				armor_upgrade_level: u.get_armor_upgrade_level(),
 				shield_upgrade_level: u.get_shield_upgrade_level(),
 				// Not populated for snapshots
-				health: u.health.map(|x| x as u32),
-				health_max: u.health_max.map(|x| x as u32),
-				shield: u.shield.map(|x| x as u32),
-				shield_max: u.shield_max.map(|x| x as u32),
-				energy: u.energy.map(|x| x as u32),
-				energy_max: u.energy_max.map(|x| x as u32),
-				mineral_contents: u.mineral_contents.map(|x| x as u32),
-				vespene_contents: u.vespene_contents.map(|x| x as u32),
+				health: u.health.map(|x| x as u32).unwrap_or(0),
+				health_max: u.health_max.map(|x| x as u32).unwrap_or(0),
+				shield: u.shield.map(|x| x as u32).unwrap_or(0),
+				shield_max: u.shield_max.map(|x| x as u32).unwrap_or(0),
+				energy: u.energy.map(|x| x as u32).unwrap_or(0),
+				energy_max: u.energy_max.map(|x| x as u32).unwrap_or(0),
+				mineral_contents: u.mineral_contents.map(|x| x as u32).unwrap_or(0),
+				vespene_contents: u.vespene_contents.map(|x| x as u32).unwrap_or(0),
 				is_flying: u.get_is_flying(),
 				is_burrowed: LockBool::new(is_burrowed),
 				is_hallucination: LockBool::new(u.get_is_hallucination()),

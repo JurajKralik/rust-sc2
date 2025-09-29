@@ -1192,7 +1192,7 @@ impl Bot {
 			.units
 			.all
 			.iter()
-			.filter_map(|u| Some((u.tag(), u.hits()?)))
+			.filter_map(|u| Some((u.tag(), u.hits())))
 			.collect();
 
 		*self.last_units_seen.write_lock() = self
