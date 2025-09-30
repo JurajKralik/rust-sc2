@@ -1,5 +1,6 @@
 //! Items representing various player's data.
 #![allow(missing_docs)]
+#![allow(non_local_definitions)]
 
 use crate::{FromProto, IntoProto};
 use num_traits::FromPrimitive;

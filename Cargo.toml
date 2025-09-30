@@ -9,7 +9,7 @@ readme = "README.md"
 license = "MIT"
 
 [dependencies]
-sc2-proto = { git = "https://github.com/JurajKralik/sc2-proto-rs" }
+sc2-proto = { path = "sc2-proto", version = "0.2.4" }
 sc2-macro = { path = "sc2-macro", version = "1" }
 tungstenite = { version = "^0.17.0", default-features = false }
 protobuf = "^2.17.0"

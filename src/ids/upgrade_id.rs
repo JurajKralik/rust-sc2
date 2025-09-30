@@ -1,4 +1,5 @@
 #![allow(deprecated)]
+#![allow(non_local_definitions)]
 
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};

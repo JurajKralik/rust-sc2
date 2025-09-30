@@ -1,5 +1,6 @@
 //! Data structures, used to store map data.
 #![allow(missing_docs)]
+#![allow(non_local_definitions)]
 
 use crate::{geometry::Point2, FromProto};
 use ndarray::Array2;
