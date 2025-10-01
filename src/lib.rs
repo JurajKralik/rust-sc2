@@ -376,6 +376,7 @@ pub mod game_data;
 pub mod game_info;
 pub mod game_state;
 pub mod geometry;
+pub mod dicts;
 pub mod ids;
 pub mod pixel_map;
 pub mod player;
