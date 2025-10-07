@@ -100,14 +100,14 @@ pub(crate) struct UnitBase {
 	pub orders: Vec<UnitOrder>,
 	pub addon_tag: Option<u64>,
 	pub passengers: Vec<PassengerUnit>,
-	pub cargo_space_taken: Option<u32>,
-	pub cargo_space_max: Option<u32>,
-	pub assigned_harvesters: Option<u32>,
-	pub ideal_harvesters: Option<u32>,
-	pub weapon_cooldown: Option<f32>,
+	pub cargo_space_taken: u32,
+	pub cargo_space_max: u32,
+	pub assigned_harvesters: u32,
+	pub ideal_harvesters: u32,
+	pub weapon_cooldown: f32,
 	pub engaged_target_tag: Option<u64>,
-	pub buff_duration_remain: Option<u32>,
-	pub buff_duration_max: Option<u32>,
+	pub buff_duration_remain: u32,
+	pub buff_duration_max: u32,
 	pub rally_targets: Vec<RallyTarget>,
 
 	// cache
@@ -377,35 +377,35 @@ impl Unit {
 	///
 	/// Note: Not populated for enemies.
 	#[inline]
-	pub fn cargo_space_taken(&self) -> Option<u32> {
+	pub fn cargo_space_taken(&self) -> u32 {
 		self.base.cargo_space_taken
 	}
 	/// Maximum space of transport or bunker.
 	///
 	/// Note: Not populated for enemies.
 	#[inline]
-	pub fn cargo_space_max(&self) -> Option<u32> {
+	pub fn cargo_space_max(&self) -> u32 {
 		self.base.cargo_space_max
 	}
 	/// Current number of workers on gas or base.
 	///
 	/// Note: Not populated for enemies.
 	#[inline]
-	pub fn assigned_harvesters(&self) -> Option<u32> {
+	pub fn assigned_harvesters(&self) -> u32 {
 		self.base.assigned_harvesters
 	}
 	/// Ideal number of workers on gas or base.
 	///
 	/// Note: Not populated for enemies.
 	#[inline]
-	pub fn ideal_harvesters(&self) -> Option<u32> {
+	pub fn ideal_harvesters(&self) -> u32 {
 		self.base.ideal_harvesters
 	}
 	/// Frames left until weapon will be ready to shot.
 	///
 	/// Note: Not populated for enemies.
 	#[inline]
-	pub fn weapon_cooldown(&self) -> Option<f32> {
+	pub fn weapon_cooldown(&self) -> f32 {
 		self.base.weapon_cooldown
 	}
 	#[inline]
@@ -416,14 +416,14 @@ impl Unit {
 	///
 	/// Note: Not populated for enemies.
 	#[inline]
-	pub fn buff_duration_remain(&self) -> Option<u32> {
+	pub fn buff_duration_remain(&self) -> u32 {
 		self.base.buff_duration_remain
 	}
 	/// How long the maximum duration of buff or unit (e.g. mule, broodling, chronoboost).
 	///
 	/// Note: Not populated for enemies.
 	#[inline]
-	pub fn buff_duration_max(&self) -> Option<u32> {
+	pub fn buff_duration_max(&self) -> u32 {
 		self.base.buff_duration_max
 	}
 	/// All rally points of structure.
@@ -555,11 +555,11 @@ impl Unit {
 	}
 	/// There're some units inside transport or bunker.
 	pub fn has_cargo(&self) -> bool {
-		self.cargo_space_taken().map_or(false, |taken| taken > 0)
+		self.cargo_space_taken() > 0
 	}
 	/// Free space left in transport or bunker.
-	pub fn cargo_left(&self) -> Option<u32> {
-		Some(self.cargo_space_max()? - self.cargo_space_taken()?)
+	pub fn cargo_left(&self) -> u32 {
+		self.cargo_space_max() - self.cargo_space_taken()
 	}
 	/// Half of [`building_size`](Self::building_size), but `2.5` for addons.
 	pub fn footprint_radius(&self) -> Option<f32> {
@@ -806,7 +806,7 @@ impl Unit {
 	}
 	/// Distance unit can travel until weapons be ready to fire.
 	pub fn distance_to_weapon_ready(&self) -> f32 {
-		self.real_speed() / FRAMES_PER_SECOND * self.weapon_cooldown().unwrap_or(0.0)
+		self.real_speed() / FRAMES_PER_SECOND * self.weapon_cooldown()
 	}
 	/// Attributes of unit, dependent on it's type.
 	pub fn attributes(&self) -> &[Attribute] {
@@ -1004,21 +1004,21 @@ impl Unit {
 	}
 	/// Checks if unit's weapon is on cooldown.
 	pub fn on_cooldown(&self) -> bool {
-		self.weapon_cooldown().map_or(false, |cool| cool > f32::EPSILON)
+		self.weapon_cooldown() > f32::EPSILON
 	}
 	/// Returns max cooldown in frames for unit's weapon.
-	pub fn max_cooldown(&self) -> Option<f32> {
-		self.data.max_cooldowns.read_lock().get(&self.type_id()).copied()
+	pub fn max_cooldown(&self) -> f32 {
+		self.data.max_cooldowns.read_lock().get(&self.type_id()).copied().unwrap_or(0.0)
 	}
 	/// Returns weapon cooldown percentage (current cooldown divided by max cooldown).
 	/// Value in range from `0` to `1`.
-	pub fn cooldown_percentage(&self) -> Option<f32> {
-		let current = self.weapon_cooldown()?;
-		let max = self.max_cooldown()?;
+	pub fn cooldown_percentage(&self) -> f32 {
+		let current = self.weapon_cooldown();
+		let max = self.max_cooldown();
 		if max == 0.0 {
-			return None;
+			return 0.0;
 		}
-		Some(current / max)
+		current / max
 	}
 	/// Returns ground range of unit's weapon without considering upgrades.
 	/// Use [`real_ground_range`](Self::real_ground_range) to get range including upgrades.
@@ -2138,14 +2138,14 @@ impl Unit {
 						},
 					})
 					.collect(),
-				cargo_space_taken: u.cargo_space_taken.map(|x| x as u32),
-				cargo_space_max: u.cargo_space_max.map(|x| x as u32),
-				assigned_harvesters: u.assigned_harvesters.map(|x| x as u32),
-				ideal_harvesters: u.ideal_harvesters.map(|x| x as u32),
-				weapon_cooldown: u.weapon_cooldown,
+				cargo_space_taken: u.cargo_space_taken.map(|x| x as u32).unwrap_or(0),
+				cargo_space_max: u.cargo_space_max.map(|x| x as u32).unwrap_or(0),
+				assigned_harvesters: u.assigned_harvesters.map(|x| x as u32).unwrap_or(0),
+				ideal_harvesters: u.ideal_harvesters.map(|x| x as u32).unwrap_or(0),
+				weapon_cooldown: u.weapon_cooldown.unwrap_or(0.0),
 				engaged_target_tag: u.engaged_target_tag,
-				buff_duration_remain: u.buff_duration_remain.map(|x| x as u32),
-				buff_duration_max: u.buff_duration_max.map(|x| x as u32),
+				buff_duration_remain: u.buff_duration_remain.map(|x| x as u32).unwrap_or(0),
+				buff_duration_max: u.buff_duration_max.map(|x| x as u32).unwrap_or(0),
 				rally_targets: u
 					.get_rally_targets()
 					.iter()

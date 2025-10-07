@@ -1269,16 +1269,16 @@ impl Bot {
 					_ => add_to!(units.destructables),
 				},
 				Alliance::Own => {
-					if let Some(cooldown) = u.weapon_cooldown() {
-						max_cooldowns
-							.entry(u.type_id())
-							.and_modify(|max| {
-								if cooldown > *max {
-									*max = cooldown;
-								}
-							})
-							.or_insert(cooldown);
-					}
+					let cooldown = u.weapon_cooldown();
+					max_cooldowns
+						.entry(u.type_id())
+						.and_modify(|max| {
+							if cooldown > *max {
+								*max = cooldown;
+							}
+						})
+						.or_insert(cooldown);
+					
 
 					let units = &mut units.my;
 
