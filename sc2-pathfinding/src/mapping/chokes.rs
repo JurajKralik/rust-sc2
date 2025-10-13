@@ -110,6 +110,15 @@ impl Choke {
     pub fn pixels(&self) -> &Vec<(usize, usize)> { &self.pixels }
 
     pub fn get_min_length(&self) -> f32 { self.min_length }
+
+    /// Returns the center point of the choke (midpoint of the main line)
+    pub fn center(&self) -> (f32, f32) {
+        let line = self.main_line();
+        (
+            (line.0.0 + line.1.0) / 2.0,
+            (line.0.1 + line.1.1) / 2.0
+        )
+    }
 }
 
 impl Choke {

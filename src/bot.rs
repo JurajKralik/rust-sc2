@@ -2069,6 +2069,308 @@ impl Bot {
 		self.pathfinding_map.as_mut()
 	}
 
+	/// Calculates zones for strategic positioning based on base locations.
+	/// Zones are connected areas separated by obstacles, useful for strategic analysis.
+	/// Must be called after initializing pathfinding.
+	/// 
+	/// # Parameters
+	/// - `base_locations`: Vector of base location positions to use as zone seeds
+	pub fn calculate_zones(&mut self, base_locations: Vec<Point2>) {
+		if let Some(ref mut pathfinding_map) = self.pathfinding_map {
+			let locations: Vec<(f32, f32)> = base_locations
+				.into_iter()
+				.map(|p| (p.x, p.y))
+				.collect();
+			pathfinding_map.calculate_zones(locations);
+		}
+	}
+
+	/// Calculates zones automatically using start locations from game info.
+	/// This is a convenience method that uses all start locations as zone seeds.
+	pub fn calculate_zones_from_start_locations(&mut self) {
+		let base_locations: Vec<Point2> = self.game_info.start_locations
+			.iter()
+			.map(|&pos| pos)
+			.collect();
+		self.calculate_zones(base_locations);
+	}
+
+	/// Calculates which zone a position belongs to.
+	/// Zones are connected areas of the map separated by obstacles or chokes.
+	/// Returns the zone ID (i8) or None if pathfinding isn't initialized.
+	/// 
+	/// # Parameters
+	/// - `position`: The map position to check
+	/// 
+	/// # Returns
+	/// - Positive values: Connected walkable areas (zone IDs)
+	/// - Negative values: Special areas or obstacles
+	/// - None: Pathfinding not initialized
+	pub fn get_zone(&self, position: Point2) -> Option<i8> {
+		self.pathfinding_map.as_ref().map(|map| {
+			map.get_zone((position.x, position.y))
+		})
+	}
+
+	/// Gets all choke points detected on the map.
+	/// Choke points are narrow passages that can be strategically important.
+	/// Returns None if pathfinding hasn't been initialized.
+	/// 
+	/// # Returns
+	/// A vector of choke point data structures containing position and geometry information.
+	pub fn get_chokes(&self) -> Option<&Vec<sc2pathfinding::Choke>> {
+		self.pathfinding_map.as_ref().map(|map| map.chokes())
+	}
+
+	/// Finds choke points within a certain distance of a position.
+	/// Useful for finding nearby strategic positions or bottlenecks.
+	/// 
+	/// # Parameters
+	/// - `position`: Center point to search around
+	/// - `max_distance`: Maximum distance to search for chokes
+	/// 
+	/// # Returns
+	/// Vector of (choke_index, distance) pairs sorted by distance, or None if pathfinding not initialized.
+	pub fn get_chokes_near(&self, position: Point2, max_distance: f32) -> Option<Vec<(usize, f32)>> {
+		self.pathfinding_map.as_ref().map(|map| {
+			let chokes = map.chokes();
+			let mut nearby_chokes = Vec::new();
+			
+			for (i, choke) in chokes.iter().enumerate() {
+				// Calculate distance to choke center
+				let choke_center = choke.center();
+				let distance = position.distance((choke_center.0, choke_center.1));
+				
+				if distance <= max_distance {
+					nearby_chokes.push((i, distance));
+				}
+			}
+			
+			// Sort by distance
+			nearby_chokes.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal));
+			nearby_chokes
+		})
+	}
+
+	/// Gets the closest choke point to a given position.
+	/// 
+	/// # Parameters
+	/// - `position`: The position to find the closest choke to
+	/// 
+	/// # Returns
+	/// (choke_index, distance) of the closest choke, or None if no chokes or pathfinding not initialized.
+	pub fn get_closest_choke(&self, position: Point2) -> Option<(usize, f32)> {
+		self.pathfinding_map.as_ref().and_then(|map| {
+			let chokes = map.chokes();
+			if chokes.is_empty() {
+				return None;
+			}
+			
+			let mut closest_choke = 0;
+			let mut closest_distance = f32::MAX;
+			
+			for (i, choke) in chokes.iter().enumerate() {
+				let choke_center = choke.center();
+				let distance = position.distance((choke_center.0, choke_center.1));
+				
+				if distance < closest_distance {
+					closest_distance = distance;
+					closest_choke = i;
+				}
+			}
+			
+			Some((closest_choke, closest_distance))
+		})
+	}
+
+	/// Adds a vision unit to the pathfinding system for vision calculations.
+	/// Vision units provide sight and detection capabilities.
+	/// 
+	/// # Parameters
+	/// - `position`: Position of the unit providing vision
+	/// - `sight_range`: How far the unit can see
+	/// - `detector`: Whether this unit can detect cloaked/burrowed units
+	/// - `flying`: Whether this is a flying unit (affects vision blocking)
+	pub fn add_vision_unit(&mut self, position: Point2, sight_range: f32, detector: bool, flying: bool) {
+		if let Some(ref mut pathfinding_map) = self.pathfinding_map {
+			pathfinding_map.add_vision_unit(
+				sc2pathfinding::mapping::vision::VisionUnit::new(
+					detector,
+					flying,
+					(position.x, position.y),
+					sight_range,
+				)
+			);
+		}
+	}
+
+	/// Clears all vision units and recalculates the vision map.
+	/// Call this before adding new vision units for the current game state.
+	pub fn clear_vision(&mut self) {
+		if let Some(ref mut pathfinding_map) = self.pathfinding_map {
+			pathfinding_map.clear_vision();
+		}
+	}
+
+	/// Calculates the complete vision map based on all added vision units.
+	/// Must be called after adding vision units and before checking vision status.
+	pub fn calculate_vision_map(&mut self) {
+		if let Some(ref mut pathfinding_map) = self.pathfinding_map {
+			pathfinding_map.calculate_vision_map();
+		}
+	}
+
+	/// Checks the vision status at a specific point.
+	/// Returns the vision level at that position.
+	/// 
+	/// # Parameters
+	/// - `position`: The map position to check
+	/// 
+	/// # Returns
+	/// - `0`: Not visible (no vision coverage)
+	/// - `1`: Visible (has sight coverage)  
+	/// - `2`: Detected (has detection coverage for cloaked units)
+	/// - None: Pathfinding not initialized
+	pub fn vision_status_at(&self, position: Point2) -> Option<usize> {
+		self.pathfinding_map.as_ref().map(|map| {
+			map.vision_status((position.x, position.y))
+		})
+	}
+
+	/// Updates vision map with current friendly units and calculates vision coverage.
+	/// This is a convenience method that automatically adds all your units as vision providers
+	/// and calculates the resulting vision map.
+	/// 
+	/// # Parameters
+	/// - `include_workers`: Whether to include worker units in vision calculations
+	/// - `include_structures`: Whether to include structures in vision calculations
+	pub fn update_vision_with_units(&mut self, include_workers: bool, include_structures: bool) {
+		if self.pathfinding_map.is_none() {
+			return;
+		}
+
+		// Collect vision unit data first to avoid borrowing conflicts
+		let mut vision_units = Vec::new();
+
+		// Add military units
+		for unit in self.units.my.units.iter() {
+			let sight_range = unit.sight_range();
+			if sight_range > 0.0 {
+				vision_units.push((
+					unit.position(),
+					sight_range,
+					unit.is_detector(),
+					unit.is_flying(),
+				));
+			}
+		}
+
+		// Add workers if requested
+		if include_workers {
+			for worker in self.units.my.workers.iter() {
+				let sight_range = worker.sight_range();
+				if sight_range > 0.0 {
+					vision_units.push((
+						worker.position(),
+						sight_range,
+						worker.is_detector(),
+						false, // Workers are typically ground units
+					));
+				}
+			}
+		}
+
+		// Add structures if requested  
+		if include_structures {
+			for structure in self.units.my.structures.iter() {
+				let sight_range = structure.sight_range();
+				if sight_range > 0.0 {
+					vision_units.push((
+						structure.position(),
+						sight_range,
+						structure.is_detector(),
+						false, // Structures are not flying
+					));
+				}
+			}
+		}
+
+		// Now clear vision and add all collected units
+		self.clear_vision();
+		
+		for (position, sight_range, is_detector, is_flying) in vision_units {
+			self.add_vision_unit(position, sight_range, is_detector, is_flying);
+		}
+
+		// Calculate the final vision map
+		self.calculate_vision_map();
+	}
+
+	/// Gets all positions that are currently visible to your units.
+	/// Returns a vector of positions that have vision coverage.
+	/// 
+	/// # Parameters
+	/// - `sample_distance`: Distance between sample points (smaller = more detailed, slower)
+	/// 
+	/// # Returns
+	/// Vector of positions with vision coverage, or None if pathfinding not initialized.
+	pub fn get_visible_positions(&self, sample_distance: f32) -> Option<Vec<Point2>> {
+		self.pathfinding_map.as_ref().map(|map| {
+			let mut visible_positions = Vec::new();
+			let playable = &self.game_info.playable_area;
+			
+			let mut x = playable.x0 as f32;
+			while x <= playable.x1 as f32 {
+				let mut y = playable.y0 as f32;
+				while y <= playable.y1 as f32 {
+					if map.vision_status((x, y)) > 0 {
+						visible_positions.push(Point2::new(x, y));
+					}
+					y += sample_distance;
+				}
+				x += sample_distance;
+			}
+			
+			visible_positions
+		})
+	}
+
+	/// Finds areas that are not currently visible but were visible before (fog of war).
+	/// Useful for tracking where enemies might have moved.
+	/// 
+	/// # Parameters  
+	/// - `center`: Center point to search around
+	/// - `radius`: Search radius
+	/// 
+	/// # Returns
+	/// Vector of positions in fog of war, or None if pathfinding not initialized.
+	pub fn get_fog_of_war_positions(&self, center: Point2, radius: f32) -> Option<Vec<Point2>> {
+		self.pathfinding_map.as_ref().map(|_map| {
+			let mut fog_positions = Vec::new();
+			
+			// Sample points in a grid around the center
+			let step = 2.0;
+			let mut x = center.x - radius;
+			while x <= center.x + radius {
+				let mut y = center.y - radius;
+				while y <= center.y + radius {
+					let pos = Point2::new(x, y);
+					if center.distance(pos) <= radius {
+						// Check if position is in fog of war using game state
+						// This uses the game's built-in visibility system
+						if self.state.observation.raw.visibility[pos] == crate::pixel_map::Visibility::Fogged {
+							fog_positions.push(pos);
+						}
+					}
+					y += step;
+				}
+				x += step;
+			}
+			
+			fog_positions
+		})
+	}
+
 	/// Leaves current game, which is counted as Defeat for bot.
 	///
 	/// Note: [`on_end`] will not be called, if needed use [`debug.end_game`] instead.

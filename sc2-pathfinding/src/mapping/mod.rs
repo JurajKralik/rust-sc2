@@ -1,4 +1,4 @@
-mod chokes;
+pub mod chokes;
 mod climb;
 pub mod connections;
 pub mod influence;

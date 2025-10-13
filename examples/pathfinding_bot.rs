@@ -11,107 +11,119 @@ impl Player for PathfindingBot {
     }
 
     fn on_start(&mut self) -> SC2Result<()> {
-        // Initialize pathfinding at the start of the game
-        println!("Initializing pathfinding...");
-        self.init_pathfinding();
-        
-        if self.is_pathfinding_initialized() {
-            println!("Pathfinding initialized successfully!");
-        } else {
-            println!("Failed to initialize pathfinding!");
-        }
+		println!("Pathfinding bot starting!");
+		
+		// Initialize pathfinding system
+		self.init_pathfinding();
+		println!("Pathfinding initialized for ground units");
+		
+		// Calculate zones based on start locations
+		self.calculate_zones_from_start_locations();
+		println!("Zones calculated based on {} start locations", 
+			self.game_info.start_locations.len());
 
-        Ok(())
-    }
+		// Print choke information
+		if let Some(chokes) = self.get_chokes() {
+			println!("Found {} choke points on the map", chokes.len());
+			for (i, choke) in chokes.iter().enumerate().take(3) { // Print first 3 chokes
+				let center = choke.center();
+				println!("  Choke {}: center at ({:.1}, {:.1}), width {:.1}", 
+					i, center.0, center.1, choke.get_min_length());
+			}
+		}
+		
+		Ok(())
+	}
 
     fn on_step(&mut self, iteration: usize) -> SC2Result<()> {
-        // Example pathfinding usage
-        if iteration == 10 && self.is_pathfinding_initialized() {
-            // Find path from start location to enemy start location
-            let start = self.start_location;
-            let end = self.enemy_start;
-            
-            match self.get_path(start, end, PathfindingUnitType::Ground, false, false) {
-                Some((path, distance)) => {
-                    println!(
-                        "Found path from start to enemy start: {} waypoints, {:.2} distance", 
-                        path.len(), 
-                        distance
-                    );
-                    
-                    // Print first few waypoints
-                    for (i, point) in path.iter().take(5).enumerate() {
-                        println!("  Waypoint {}: ({:.1}, {:.1})", i, point.x, point.y);
-                    }
-                    if path.len() > 5 {
-                        println!("  ... and {} more waypoints", path.len() - 5);
-                    }
-                }
-                None => {
-                    println!("No path found from start to enemy start!");
-                }
-            }
-        }
-        
-        // Example: Find paths for workers to mineral patches
-        if iteration == 20 && self.is_pathfinding_initialized() {
-            for worker in self.units.my.workers.iter().take(3) {
-                if let Some(mineral) = self.units.mineral_fields.closest(worker.position()) {
-                    match self.get_path(
-                        worker.position(),
-                        mineral.position(),
-                        PathfindingUnitType::Ground,
-                        false,
-                        false
-                    ) {
-                        Some((path, distance)) => {
-                            println!(
-                                "Worker {} -> Mineral: {} steps, {:.2} distance",
-                                worker.tag(),
-                                path.len(),
-                                distance
-                            );
-                        }
-                        None => {
-                            println!("Worker {} cannot reach mineral!", worker.tag());
-                        }
-                    }
-                }
-            }
-        }
-
-        // Example: Update pathfinding with new buildings
-        if iteration % 100 == 0 && iteration > 0 {
-            self.update_pathfinding_buildings();
-            println!("Updated pathfinding with current buildings (iteration {})", iteration);
-        }
-
-        // Example: Advanced pathfinding with different unit types
-        if iteration == 50 && self.is_pathfinding_initialized() {
-            let start = self.start_location;
-            let end = self.enemy_start;
-            
-            // Test different unit types
-            let unit_types = [
-                ("Ground", PathfindingUnitType::Ground),
-                ("Air", PathfindingUnitType::Air),
-                ("Reaper", PathfindingUnitType::Reaper),
-                ("Colossus", PathfindingUnitType::Colossus),
-            ];
-            
-            for (name, unit_type) in &unit_types {
-                match self.get_path(start, end, *unit_type, false, false) {
-                    Some((path, distance)) => {
-                        println!("{} path: {} waypoints, {:.2} distance", name, path.len(), distance);
-                    }
-                    None => {
-                        println!("{} path: No path found!", name);
-                    }
-                }
-            }
-        }
-
-        Ok(())
+		// Demonstrate pathfinding every 50 iterations
+		if iteration % 50 == 0 && !self.units.my.workers.is_empty() {
+			let worker = self.units.my.workers.first().unwrap();
+			let start = worker.position();
+			
+			// Try to find path to the center of the map
+			let map_center = Point2::new(
+				(self.game_info.playable_area.x0 + self.game_info.playable_area.x1) as f32 / 2.0,
+				(self.game_info.playable_area.y0 + self.game_info.playable_area.y1) as f32 / 2.0
+			);
+			
+			match self.get_path(start, map_center, PathfindingUnitType::Ground, false, false) {
+				Some((path, distance)) if !path.is_empty() => {
+					println!("Found path from worker to map center with {} steps, distance {:.1}", path.len(), distance);
+					
+					// Demonstrate zone analysis
+					if let Some(start_zone) = self.get_zone(start) {
+						if let Some(end_zone) = self.get_zone(map_center) {
+							println!("Worker is in zone {}, map center is in zone {}", 
+								start_zone, end_zone);
+							
+							if start_zone != end_zone {
+								// Find nearest choke
+								if let Some((choke_idx, distance)) = self.get_closest_choke(start) {
+									println!("Nearest choke is #{} at distance {:.1}", choke_idx, distance);
+									
+									// Find all chokes within 20 units
+									if let Some(nearby_chokes) = self.get_chokes_near(start, 20.0) {
+										println!("Found {} chokes within 20 units", nearby_chokes.len());
+									}
+								}
+							}
+						}
+					}
+					
+					// Demonstrate advanced pathfinding with different options
+					match self.get_path_advanced(start, map_center, PathfindingUnitType::Air, false, false, None, None, Some(50.0)) {
+						Some((air_path, air_distance)) => {
+							println!("Air path has {} steps, {:.1} distance (vs {} ground steps, {:.1} distance)", 
+								air_path.len(), air_distance, path.len(), distance);
+						}
+						None => println!("No air path found"),
+					}
+				}
+				_ => println!("No path found from worker to map center"),
+			}
+		}
+		
+		// Demonstrate vision system every 100 iterations
+		if iteration % 100 == 0 {
+			println!("Updating pathfinding with current buildings...");
+			self.update_pathfinding_buildings();
+			
+			// Update vision map with all units
+			self.update_vision_with_units(true, true);
+			
+			// Check vision status at a few key positions
+			let map_center = Point2::new(
+				(self.game_info.playable_area.x0 + self.game_info.playable_area.x1) as f32 / 2.0,
+				(self.game_info.playable_area.y0 + self.game_info.playable_area.y1) as f32 / 2.0
+			);
+			let test_positions = vec![
+				self.start_location,
+				map_center,
+			];
+			
+			for pos in test_positions {
+				match self.vision_status_at(pos) {
+					Some(0) => println!("Position {:.1},{:.1}: No vision", pos.x, pos.y),
+					Some(1) => println!("Position {:.1},{:.1}: Visible", pos.x, pos.y),
+					Some(2) => println!("Position {:.1},{:.1}: Detected", pos.x, pos.y),
+					Some(level) => println!("Position {:.1},{:.1}: Vision level {}", pos.x, pos.y, level),
+					None => println!("Position {:.1},{:.1}: Vision check failed", pos.x, pos.y),
+				}
+			}
+			
+			// Get all visible positions (sampled)
+			if let Some(visible_positions) = self.get_visible_positions(5.0) {
+				println!("Currently have vision of {} positions", visible_positions.len());
+			}
+			
+			// Check for fog of war around main base
+			if let Some(fog_positions) = self.get_fog_of_war_positions(self.start_location, 15.0) {
+				println!("Found {} positions in fog of war near main base", fog_positions.len());
+			}
+		}
+		
+		Ok(())
     }
 
     fn on_end(&self, result: GameResult) -> SC2Result<()> {
