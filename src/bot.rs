@@ -379,6 +379,19 @@ impl Default for Completion {
 	}
 }
 
+/// Unit types for pathfinding, determining which terrain can be traversed.
+#[derive(Clone, Copy, Debug)]
+pub enum PathfindingUnitType {
+	/// Regular ground units (most units)
+	Ground,
+	/// Reapers can traverse cliffs and special terrain
+	Reaper,
+	/// Colossi can walk over some obstacles
+	Colossus,
+	/// Air units can fly over everything
+	Air,
+}
+
 /// Main bot struct.
 /// Structs with [`#[bot]`][b] attribute will get all it's fields and methods
 /// through [`Deref`] and [`DerefMut`] traits.
@@ -463,6 +476,8 @@ pub struct Bot {
 	pub vision_blockers: Vec<Point2>,
 	/// Ramps on map.
 	pub ramps: Ramps,
+	/// Pathfinding map for advanced pathfinding operations.
+	pub pathfinding_map: Option<sc2pathfinding::Map>,
 	enemy_upgrades: Rw<FxHashSet<UpgradeId>>,
 	pub(crate) owned_tags: FxHashSet<u64>,
 	pub(crate) under_construction: FxHashSet<u64>,
@@ -487,6 +502,36 @@ impl Bot {
 	pub fn game_step(&self) -> u32 {
 		self.game_step.get_locked()
 	}
+
+	/// Converts rust-sc2 PixelMap to Vec<Vec<usize>> format for sc2-pathfinding
+	fn pixel_map_to_vec(pixel_map: &crate::pixel_map::PixelMap) -> Vec<Vec<usize>> {
+		let (width, height) = pixel_map.dim();
+		let mut result = vec![vec![0; height]; width];
+		
+		for x in 0..width {
+			for y in 0..height {
+				result[x][y] = match pixel_map[(x, y)] {
+					crate::pixel_map::Pixel::Empty => 1, // Pathable
+					crate::pixel_map::Pixel::Set => 0,   // Not pathable
+				};
+			}
+		}
+		result
+	}
+
+	/// Converts rust-sc2 ByteMap to Vec<Vec<usize>> format for sc2-pathfinding
+	fn byte_map_to_vec(byte_map: &crate::pixel_map::ByteMap) -> Vec<Vec<usize>> {
+		let (width, height) = byte_map.dim();
+		let mut result = vec![vec![0; height]; width];
+		
+		for x in 0..width {
+			for y in 0..height {
+				result[x][y] = byte_map[(x, y)] as usize;
+			}
+		}
+		result
+	}
+
 	/// Constructs new [`CountOptions`], used to count units fast and easy.
 	///
 	/// # Examples
@@ -1850,6 +1895,180 @@ impl Bot {
 			.collect())
 	}
 
+	/// Initializes advanced pathfinding using sc2-pathfinding library.
+	/// Should be called once at the start of the game, typically in `on_start()`.
+	/// 
+	/// This creates pathfinding maps from game terrain data and enables the use of
+	/// `get_path` and other advanced pathfinding methods.
+	pub fn init_pathfinding(&mut self) {
+		let pathing_vec = Self::pixel_map_to_vec(&self.game_info.pathing_grid);
+		let placement_vec = Self::pixel_map_to_vec(&self.game_info.placement_grid);
+		let height_vec = Self::byte_map_to_vec(&*self.game_info.terrain_height);
+		
+		let playable = &self.game_info.playable_area;
+		
+		self.pathfinding_map = Some(sc2pathfinding::Map::new(
+			pathing_vec,
+			placement_vec,
+			height_vec,
+			playable.x0,
+			playable.y0,
+			playable.x1,
+			playable.y1,
+		));
+	}
+
+	/// Returns whether pathfinding has been initialized.
+	pub fn is_pathfinding_initialized(&self) -> bool {
+		self.pathfinding_map.is_some()
+	}
+
+	/// Finds a path between two points using advanced pathfinding.
+	/// 
+	/// # Parameters
+	/// - `start`: Starting position
+	/// - `end`: Target position
+	/// - `unit_type`: Type of unit for pathfinding (affects which terrain can be traversed)
+	/// - `large_unit`: Whether this is a large unit (affects pathing through tight spaces)
+	/// - `use_influence`: Whether to consider influence maps (areas to avoid)
+	/// 
+	/// # Returns
+	/// Returns `Some((path, distance))` if path found, `None` if no path exists or pathfinding not initialized.
+	/// Path is a vector of waypoints from start to end.
+	pub fn get_path(
+		&self,
+		start: Point2,
+		end: Point2,
+		unit_type: PathfindingUnitType,
+		large_unit: bool,
+		use_influence: bool,
+	) -> Option<(Vec<Point2>, f32)> {
+		let pathfinding_map = self.pathfinding_map.as_ref()?;
+		
+		let map_type = match unit_type {
+			PathfindingUnitType::Ground => 0,
+			PathfindingUnitType::Reaper => 1,
+			PathfindingUnitType::Colossus => 2,
+			PathfindingUnitType::Air => 3,
+		};
+		
+		let (path_coords, distance) = pathfinding_map.find_path(
+			map_type,
+			(start.x, start.y),
+			(end.x, end.y),
+			large_unit,
+			use_influence,
+			Some(1), // Use octile distance heuristic
+			None,    // No window restriction
+			None,    // No distance limit
+		);
+		
+		if path_coords.is_empty() {
+			None
+		} else {
+			// Convert (usize, usize) coordinates back to Point2
+			let path_points: Vec<Point2> = path_coords
+				.into_iter()
+				.map(|(x, y)| Point2::new(x as f32, y as f32))
+				.collect();
+			Some((path_points, distance))
+		}
+	}
+
+	/// Finds a path between two points with more advanced options.
+	/// 
+	/// # Parameters
+	/// - `start`: Starting position
+	/// - `end`: Target position  
+	/// - `unit_type`: Type of unit for pathfinding
+	/// - `large_unit`: Whether this is a large unit
+	/// - `use_influence`: Whether to consider influence maps
+	/// - `heuristic`: Distance heuristic (0=Manhattan, 1=Octile, 2=Euclidean)
+	/// - `search_window`: Optional search area restriction ((min_x, min_y), (max_x, max_y))
+	/// - `max_distance`: Optional maximum distance from target to stop search early
+	/// 
+	/// # Returns
+	/// Returns `Some((path, distance))` if path found, `None` if no path exists or pathfinding not initialized.
+	pub fn get_path_advanced(
+		&self,
+		start: Point2,
+		end: Point2,
+		unit_type: PathfindingUnitType,
+		large_unit: bool,
+		use_influence: bool,
+		heuristic: Option<u8>,
+		search_window: Option<(Point2, Point2)>,
+		max_distance: Option<f32>,
+	) -> Option<(Vec<Point2>, f32)> {
+		let pathfinding_map = self.pathfinding_map.as_ref()?;
+		
+		let map_type = match unit_type {
+			PathfindingUnitType::Ground => 0,
+			PathfindingUnitType::Reaper => 1,
+			PathfindingUnitType::Colossus => 2,
+			PathfindingUnitType::Air => 3,
+		};
+		
+		let window_coords = search_window.map(|(min_pos, max_pos)| {
+			((min_pos.x as usize, min_pos.y as usize), (max_pos.x as usize, max_pos.y as usize))
+		});
+		
+		let (path_coords, distance) = pathfinding_map.find_path(
+			map_type,
+			(start.x, start.y),
+			(end.x, end.y),
+			large_unit,
+			use_influence,
+			heuristic,
+			window_coords.map(|((x1, y1), (x2, y2))| ((x1 as f32, y1 as f32), (x2 as f32, y2 as f32))),
+			max_distance,
+		);
+		
+		if path_coords.is_empty() {
+			None
+		} else {
+			// Convert (usize, usize) coordinates back to Point2
+			let path_points: Vec<Point2> = path_coords
+				.into_iter()
+				.map(|(x, y)| Point2::new(x as f32, y as f32))
+				.collect();
+			Some((path_points, distance))
+		}
+	}
+
+	/// Updates pathfinding maps with building positions to create dynamic obstacles.
+	/// Call this when buildings are constructed or destroyed to update pathfinding.
+	pub fn update_pathfinding_buildings(&mut self) {
+		if let Some(ref mut pathfinding_map) = self.pathfinding_map {
+			// Reset to original state first
+			pathfinding_map.reset();
+			
+			// Add all current buildings as obstacles
+			let building_centers: Vec<(f32, f32)> = self.units.my.structures
+				.iter()
+				.map(|building| (building.position().x, building.position().y))
+				.collect();
+			
+			if !building_centers.is_empty() {
+				// Use a default building size - you might want to make this more sophisticated
+				// by using actual building sizes from game data
+				pathfinding_map.create_blocks(building_centers, (3, 3));
+			}
+		}
+	}
+
+	/// Gets the pathfinding map reference for direct access to advanced features.
+	/// Returns None if pathfinding hasn't been initialized.
+	pub fn pathfinding_map(&self) -> Option<&sc2pathfinding::Map> {
+		self.pathfinding_map.as_ref()
+	}
+
+	/// Gets a mutable pathfinding map reference for direct manipulation.
+	/// Returns None if pathfinding hasn't been initialized.
+	pub fn pathfinding_map_mut(&mut self) -> Option<&mut sc2pathfinding::Map> {
+		self.pathfinding_map.as_mut()
+	}
+
 	/// Leaves current game, which is counted as Defeat for bot.
 	///
 	/// Note: [`on_end`] will not be called, if needed use [`debug.end_game`] instead.
@@ -1929,6 +2148,7 @@ impl Default for Bot {
 			last_units_seen: Default::default(),
 			vision_blockers: Default::default(),
 			ramps: Default::default(),
+			pathfinding_map: None,
 			enemy_upgrades: Default::default(),
 			owned_tags: Default::default(),
 			under_construction: Default::default(),

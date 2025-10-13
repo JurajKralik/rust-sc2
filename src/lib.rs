@@ -344,7 +344,7 @@ pub mod prelude {
 	pub use crate::units::rayon::ParUnitsIterator;
 	pub use crate::{
 		action::Target,
-		bot::PlacementOptions,
+		bot::{PathfindingUnitType, PlacementOptions},
 		client::{
 			run_ladder_game, run_vs_computer, run_vs_human, LaunchOptions, RunnerMulti, RunnerSingle,
 			SC2Result,
