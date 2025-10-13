@@ -106,7 +106,7 @@ fn flood_fill(map: &mut Map,
         }
     }
 
-    let mut point = map.borrow(x, y);
+    let point = map.borrow(x, y);
 
     point.zone_index = zone_index;
 
