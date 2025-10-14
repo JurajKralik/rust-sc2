@@ -359,6 +359,11 @@ pub mod prelude {
 		units::{iter::UnitsIterator, Units},
 		Event, Player, PlayerSettings,
 	};
+	// Re-export pathfinding types
+	pub use sc2pathfinding::Choke;
+	pub use sc2pathfinding::VisionUnit;
+	pub use sc2pathfinding::Map;
+	pub use sc2pathfinding::PathFind;
 	#[doc(no_inline)]
 	pub use sc2_macro::{bot, bot_new};
 }

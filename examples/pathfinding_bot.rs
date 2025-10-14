@@ -2,7 +2,9 @@ use rust_sc2::prelude::*;
 
 #[bot]
 #[derive(Default)]
-struct PathfindingBot;
+struct PathfindingBot {
+	choke_points: Vec<Choke>,
+}
 
 impl Player for PathfindingBot {
     fn get_player_settings(&self) -> PlayerSettings {
@@ -24,12 +26,7 @@ impl Player for PathfindingBot {
 
 		// Print choke information
 		if let Some(chokes) = self.get_chokes() {
-			println!("Found {} choke points on the map", chokes.len());
-			for (i, choke) in chokes.iter().enumerate().take(3) { // Print first 3 chokes
-				let center = choke.center();
-				println!("  Choke {}: center at ({:.1}, {:.1}), width {:.1}", 
-					i, center.0, center.1, choke.get_min_length());
-			}
+			self.choke_points = chokes.clone();
 		}
 		
 		Ok(())
