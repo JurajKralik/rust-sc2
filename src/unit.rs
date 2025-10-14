@@ -252,17 +252,14 @@ impl Unit {
 	pub fn is_active(&self) -> bool {
 		self.base.is_active
 	}
-	/// General attack upgrade level without considering buffs and special upgrades.
 	#[inline]
 	pub fn attack_upgrade_level(&self) -> u32 {
 		self.base.attack_upgrade_level
 	}
-	/// General armor upgrade level without considering buffs and special upgrades.
 	#[inline]
 	pub fn armor_upgrade_level(&self) -> i32 {
 		self.base.armor_upgrade_level
 	}
-	/// General shield upgrade level without considering buffs and special upgrades.
 	#[inline]
 	pub fn shield_upgrade_level(&self) -> i32 {
 		self.base.shield_upgrade_level
@@ -659,8 +656,7 @@ impl Unit {
 	pub fn cost(&self) -> Cost {
 		self.type_data().map_or(Cost::default(), |data| data.cost())
 	}
-	/// Returns health percentage (current health divided by max health).
-	/// Value in range from `0` to `1`.
+	/// Returns health percentage (0.0 to 1.0).
 	pub fn health_percentage(&self) -> f32 {
 		let current = self.health();
 		let max = self.health_max();
@@ -669,8 +665,7 @@ impl Unit {
 		}
 		current as f32 / max as f32
 	}
-	/// Returns shield percentage (current shield divided by max shield).
-	/// Value in range from `0` to `1`.
+	/// Returns shield percentage (0.0 to 1.0).
 	pub fn shield_percentage(&self) -> f32 {
 		let current = self.shield();
 		let max = self.shield_max();
@@ -679,8 +674,7 @@ impl Unit {
 		}
 		current as f32 / max as f32
 	}
-	/// Returns energy percentage (current energy divided by max energy).
-	/// Value in range from `0` to `1`.
+	/// Returns energy percentage (0.0 to 1.0).
 	pub fn energy_percentage(&self) -> f32 {
 		let current = self.energy();
 		let max = self.energy_max();
@@ -689,9 +683,7 @@ impl Unit {
 		}
 		current as f32 / max as f32
 	}
-	/// Returns summed health and shield.
-	///
-	/// Not populated for snapshots.
+	/// Returns summed health and shield. Not populated for snapshots.
 	pub fn hits(&self) -> u32 {
 		let extra_shield = if self.has_buff(BuffId::ImmortalShield) {
 			100

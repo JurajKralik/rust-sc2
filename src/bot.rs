@@ -219,21 +219,9 @@ impl Default for PlacementOptions {
 pub struct CountOptions<'a> {
 	bot: &'a Bot,
 	enemies: bool,
-	/// State of counted units.
-	/// Can be:
-	/// - `Complete` - only complete units
-	/// - `Ordered` - only units in progress
-	/// - `All` - both compete and ordered units
-	///
-	/// [Default: `Complete`]
+	/// State of counted units (Complete, Ordered, All).
 	pub completion: Completion,
-	/// Alias of counted units.
-	/// Can be:
-	/// - `None` - don't count alias
-	/// - `Unit` - count unit-alias, used when unit has 2 forms
-	/// - `Tech` - count tech-alias, used when unit has more than 2 forms (usually structures)
-	///
-	/// [Default: `None`]
+	/// Alias type for counting unit variants.
 	pub alias: UnitAlias,
 }
 impl<'a> CountOptions<'a> {
@@ -1896,10 +1884,16 @@ impl Bot {
 	}
 
 	/// Initializes advanced pathfinding using sc2-pathfinding library.
-	/// Should be called once at the start of the game, typically in `on_start()`.
+	/// 
+	/// **Note**: Manual initialization is no longer required! Methods like `get_path_lazy()`, 
+	/// `get_chokes_lazy()`, and `get_zone_lazy()` will automatically initialize pathfinding 
+	/// when first called.
+	/// 
+	/// This method can still be called manually if you want to initialize pathfinding
+	/// at a specific time (e.g., in `on_start()` for predictable performance).
 	/// 
 	/// This creates pathfinding maps from game terrain data and enables the use of
-	/// `get_path` and other advanced pathfinding methods.
+	/// pathfinding methods.
 	pub fn init_pathfinding(&mut self) {
 		let pathing_vec = Self::pixel_map_to_vec(&self.game_info.pathing_grid);
 		let placement_vec = Self::pixel_map_to_vec(&self.game_info.placement_grid);
@@ -1923,6 +1917,16 @@ impl Bot {
 		self.pathfinding_map.is_some()
 	}
 
+	/// Ensures pathfinding is initialized. This method automatically initializes
+	/// pathfinding and calculates zones if they haven't been set up yet.
+	/// This is called internally by pathfinding methods to provide seamless functionality.
+	fn ensure_pathfinding_initialized(&mut self) {
+		if !self.is_pathfinding_initialized() {
+			self.init_pathfinding();
+			self.calculate_zones_from_start_locations();
+		}
+	}
+
 	/// Finds a path between two points using advanced pathfinding.
 	/// 
 	/// # Parameters
@@ -1944,6 +1948,61 @@ impl Bot {
 		use_influence: bool,
 	) -> Option<(Vec<Point2>, f32)> {
 		let pathfinding_map = self.pathfinding_map.as_ref()?;
+		
+		let map_type = match unit_type {
+			PathfindingUnitType::Ground => 0,
+			PathfindingUnitType::Reaper => 1,
+			PathfindingUnitType::Colossus => 2,
+			PathfindingUnitType::Air => 3,
+		};
+		
+		let (path_coords, distance) = pathfinding_map.find_path(
+			map_type,
+			(start.x, start.y),
+			(end.x, end.y),
+			large_unit,
+			use_influence,
+			Some(1), // Use octile distance heuristic
+			None,    // No window restriction
+			None,    // No distance limit
+		);
+		
+		if path_coords.is_empty() {
+			None
+		} else {
+			// Convert (usize, usize) coordinates back to Point2
+			let path_points: Vec<Point2> = path_coords
+				.into_iter()
+				.map(|(x, y)| Point2::new(x as f32, y as f32))
+				.collect();
+			Some((path_points, distance))
+		}
+	}
+
+	/// Finds a path between two points using advanced pathfinding with automatic initialization.  
+	/// This version automatically initializes pathfinding if it hasn't been set up yet.
+	/// 
+	/// # Parameters
+	/// - `start`: Starting position
+	/// - `end`: Target position
+	/// - `unit_type`: Type of unit for pathfinding (affects which terrain can be traversed)
+	/// - `large_unit`: Whether this is a large unit (affects pathing through tight spaces)
+	/// - `use_influence`: Whether to consider influence maps (areas to avoid)
+	/// 
+	/// # Returns
+	/// Returns `Some((path, distance))` if path found, `None` if no valid path exists.
+	/// Path is a vector of waypoints from start to end.
+	pub fn get_path_lazy(
+		&mut self,
+		start: Point2,
+		end: Point2,
+		unit_type: PathfindingUnitType,
+		large_unit: bool,
+		use_influence: bool,
+	) -> Option<(Vec<Point2>, f32)> {
+		self.ensure_pathfinding_initialized();
+		
+		let pathfinding_map = self.pathfinding_map.as_ref().unwrap();
 		
 		let map_type = match unit_type {
 			PathfindingUnitType::Ground => 0,
@@ -2086,7 +2145,12 @@ impl Bot {
 	}
 
 	/// Calculates zones automatically using start locations from game info.
+	/// 
+	/// **Note**: Manual zone calculation is no longer required! The lazy pathfinding methods
+	/// will automatically calculate zones when first called.
+	/// 
 	/// This is a convenience method that uses all start locations as zone seeds.
+	/// You can still call this manually if you want to calculate zones at a specific time.
 	pub fn calculate_zones_from_start_locations(&mut self) {
 		let base_locations: Vec<Point2> = self.game_info.start_locations
 			.iter()
@@ -2112,6 +2176,21 @@ impl Bot {
 		})
 	}
 
+	/// Calculates which zone a position belongs to with automatic initialization.
+	/// This version automatically initializes pathfinding if it hasn't been set up yet.
+	/// Zones are connected areas of the map separated by obstacles or chokes.
+	/// 
+	/// # Parameters
+	/// - `position`: The map position to check
+	/// 
+	/// # Returns
+	/// - Positive values: Connected walkable areas (zone IDs)
+	/// - Negative values: Special areas or obstacles
+	pub fn get_zone_lazy(&mut self, position: Point2) -> i8 {
+		self.ensure_pathfinding_initialized();
+		self.pathfinding_map.as_ref().unwrap().get_zone((position.x, position.y))
+	}
+
 	/// Gets all choke points detected on the map.
 	/// Choke points are narrow passages that can be strategically important.
 	/// Returns None if pathfinding hasn't been initialized.
@@ -2120,6 +2199,18 @@ impl Bot {
 	/// A vector of choke point data structures containing position and geometry information.
 	pub fn get_chokes(&self) -> Option<&Vec<sc2pathfinding::Choke>> {
 		self.pathfinding_map.as_ref().map(|map| map.chokes())
+	}
+
+	/// Gets all choke points detected on the map with automatic initialization.
+	/// This version automatically initializes pathfinding if it hasn't been set up yet.
+	/// Choke points are narrow passages that can be strategically important.
+	/// 
+	/// # Returns
+	/// A vector of choke point data structures containing position and geometry information.
+	/// This method will never return None due to uninitialized pathfinding.
+	pub fn get_chokes_lazy(&mut self) -> &Vec<sc2pathfinding::Choke> {
+		self.ensure_pathfinding_initialized();
+		self.pathfinding_map.as_ref().unwrap().chokes()
 	}
 
 	/// Finds choke points within a certain distance of a position.

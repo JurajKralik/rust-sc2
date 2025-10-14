@@ -2,9 +2,7 @@ use rust_sc2::prelude::*;
 
 #[bot]
 #[derive(Default)]
-struct PathfindingBot {
-	choke_points: Vec<Choke>,
-}
+struct PathfindingBot;
 
 impl Player for PathfindingBot {
     fn get_player_settings(&self) -> PlayerSettings {
@@ -15,19 +13,15 @@ impl Player for PathfindingBot {
     fn on_start(&mut self) -> SC2Result<()> {
 		println!("Pathfinding bot starting!");
 		
-		// Initialize pathfinding system
-		self.init_pathfinding();
-		println!("Pathfinding initialized for ground units");
-		
-		// Calculate zones based on start locations
-		self.calculate_zones_from_start_locations();
+		// No manual initialization needed! Pathfinding will be automatically 
+		// initialized when first used by the lazy methods.
+		println!("Using automatic pathfinding initialization");
+
+		// Print choke information using lazy method
+		let chokes = self.get_chokes_lazy();
+		println!("Found {} choke points on the map", chokes.len());
 		println!("Zones calculated based on {} start locations", 
 			self.game_info.start_locations.len());
-
-		// Print choke information
-		if let Some(chokes) = self.get_chokes() {
-			self.choke_points = chokes.clone();
-		}
 		
 		Ok(())
 	}
@@ -44,26 +38,24 @@ impl Player for PathfindingBot {
 				(self.game_info.playable_area.y0 + self.game_info.playable_area.y1) as f32 / 2.0
 			);
 			
-			match self.get_path(start, map_center, PathfindingUnitType::Ground, false, false) {
+			match self.get_path_lazy(start, map_center, PathfindingUnitType::Ground, false, false) {
 				Some((path, distance)) if !path.is_empty() => {
 					println!("Found path from worker to map center with {} steps, distance {:.1}", path.len(), distance);
 					
-					// Demonstrate zone analysis
-					if let Some(start_zone) = self.get_zone(start) {
-						if let Some(end_zone) = self.get_zone(map_center) {
-							println!("Worker is in zone {}, map center is in zone {}", 
-								start_zone, end_zone);
+					// Demonstrate zone analysis using lazy versions
+					let start_zone = self.get_zone_lazy(start);
+					let end_zone = self.get_zone_lazy(map_center);
+					println!("Worker is in zone {}, map center is in zone {}", 
+						start_zone, end_zone);
+					
+					if start_zone != end_zone {
+						// Find nearest choke
+						if let Some((choke_idx, distance)) = self.get_closest_choke(start) {
+							println!("Nearest choke is #{} at distance {:.1}", choke_idx, distance);
 							
-							if start_zone != end_zone {
-								// Find nearest choke
-								if let Some((choke_idx, distance)) = self.get_closest_choke(start) {
-									println!("Nearest choke is #{} at distance {:.1}", choke_idx, distance);
-									
-									// Find all chokes within 20 units
-									if let Some(nearby_chokes) = self.get_chokes_near(start, 20.0) {
-										println!("Found {} chokes within 20 units", nearby_chokes.len());
-									}
-								}
+							// Find all chokes within 20 units
+							if let Some(nearby_chokes) = self.get_chokes_near(start, 20.0) {
+								println!("Found {} chokes within 20 units", nearby_chokes.len());
 							}
 						}
 					}
