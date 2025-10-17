@@ -197,13 +197,13 @@ impl ::protobuf::Message for Score {
         &mut self.unknown_fields
     }
 
-    fn as_any(&self) -> &dyn (::std::any::Any) {
-        self as &dyn (::std::any::Any)
+    fn as_any(&self) -> &dyn ::std::any::Any {
+        self as &dyn ::std::any::Any
     }
-    fn as_any_mut(&mut self) -> &mut dyn (::std::any::Any) {
-        self as &mut dyn (::std::any::Any)
+    fn as_any_mut(&mut self) -> &mut dyn ::std::any::Any {
+        self as &mut dyn ::std::any::Any
     }
-    fn into_any(self: ::std::boxed::Box<Self>) -> ::std::boxed::Box<dyn (::std::any::Any)> {
+    fn into_any(self: ::std::boxed::Box<Self>) -> ::std::boxed::Box<dyn ::std::any::Any> {
         self
     }
 
@@ -264,7 +264,7 @@ impl ::std::fmt::Debug for Score {
 }
 
 impl ::protobuf::reflect::ProtobufValue for Score {
-    fn as_ref(&self) -> ::protobuf::reflect::ReflectValueRef {
+    fn as_ref(&self) -> ::protobuf::reflect::ReflectValueRef <'_>{
         ::protobuf::reflect::ReflectValueRef::Message(self)
     }
 }
@@ -315,7 +315,7 @@ impl ::std::default::Default for Score_ScoreType {
 }
 
 impl ::protobuf::reflect::ProtobufValue for Score_ScoreType {
-    fn as_ref(&self) -> ::protobuf::reflect::ReflectValueRef {
+    fn as_ref(&self) -> ::protobuf::reflect::ReflectValueRef <'_>{
         ::protobuf::reflect::ReflectValueRef::Enum(::protobuf::ProtobufEnum::descriptor(self))
     }
 }
@@ -548,13 +548,13 @@ impl ::protobuf::Message for CategoryScoreDetails {
         &mut self.unknown_fields
     }
 
-    fn as_any(&self) -> &dyn (::std::any::Any) {
-        self as &dyn (::std::any::Any)
+    fn as_any(&self) -> &dyn ::std::any::Any {
+        self as &dyn ::std::any::Any
     }
-    fn as_any_mut(&mut self) -> &mut dyn (::std::any::Any) {
-        self as &mut dyn (::std::any::Any)
+    fn as_any_mut(&mut self) -> &mut dyn ::std::any::Any {
+        self as &mut dyn ::std::any::Any
     }
-    fn into_any(self: ::std::boxed::Box<Self>) -> ::std::boxed::Box<dyn (::std::any::Any)> {
+    fn into_any(self: ::std::boxed::Box<Self>) -> ::std::boxed::Box<dyn ::std::any::Any> {
         self
     }
 
@@ -627,7 +627,7 @@ impl ::std::fmt::Debug for CategoryScoreDetails {
 }
 
 impl ::protobuf::reflect::ProtobufValue for CategoryScoreDetails {
-    fn as_ref(&self) -> ::protobuf::reflect::ReflectValueRef {
+    fn as_ref(&self) -> ::protobuf::reflect::ReflectValueRef <'_>{
         ::protobuf::reflect::ReflectValueRef::Message(self)
     }
 }
@@ -794,13 +794,13 @@ impl ::protobuf::Message for VitalScoreDetails {
         &mut self.unknown_fields
     }
 
-    fn as_any(&self) -> &dyn (::std::any::Any) {
-        self as &dyn (::std::any::Any)
+    fn as_any(&self) -> &dyn ::std::any::Any {
+        self as &dyn ::std::any::Any
     }
-    fn as_any_mut(&mut self) -> &mut dyn (::std::any::Any) {
-        self as &mut dyn (::std::any::Any)
+    fn as_any_mut(&mut self) -> &mut dyn ::std::any::Any {
+        self as &mut dyn ::std::any::Any
     }
-    fn into_any(self: ::std::boxed::Box<Self>) -> ::std::boxed::Box<dyn (::std::any::Any)> {
+    fn into_any(self: ::std::boxed::Box<Self>) -> ::std::boxed::Box<dyn ::std::any::Any> {
         self
     }
 
@@ -861,7 +861,7 @@ impl ::std::fmt::Debug for VitalScoreDetails {
 }
 
 impl ::protobuf::reflect::ProtobufValue for VitalScoreDetails {
-    fn as_ref(&self) -> ::protobuf::reflect::ReflectValueRef {
+    fn as_ref(&self) -> ::protobuf::reflect::ReflectValueRef <'_>{
         ::protobuf::reflect::ReflectValueRef::Message(self)
     }
 }
@@ -2105,13 +2105,13 @@ impl ::protobuf::Message for ScoreDetails {
         &mut self.unknown_fields
     }
 
-    fn as_any(&self) -> &dyn (::std::any::Any) {
-        self as &dyn (::std::any::Any)
+    fn as_any(&self) -> &dyn ::std::any::Any {
+        self as &dyn ::std::any::Any
     }
-    fn as_any_mut(&mut self) -> &mut dyn (::std::any::Any) {
-        self as &mut dyn (::std::any::Any)
+    fn as_any_mut(&mut self) -> &mut dyn ::std::any::Any {
+        self as &mut dyn ::std::any::Any
     }
-    fn into_any(self: ::std::boxed::Box<Self>) -> ::std::boxed::Box<dyn (::std::any::Any)> {
+    fn into_any(self: ::std::boxed::Box<Self>) -> ::std::boxed::Box<dyn ::std::any::Any> {
         self
     }
 
@@ -2322,7 +2322,7 @@ impl ::std::fmt::Debug for ScoreDetails {
 }
 
 impl ::protobuf::reflect::ProtobufValue for ScoreDetails {
-    fn as_ref(&self) -> ::protobuf::reflect::ReflectValueRef {
+    fn as_ref(&self) -> ::protobuf::reflect::ReflectValueRef <'_>{
         ::protobuf::reflect::ReflectValueRef::Message(self)
     }
 }

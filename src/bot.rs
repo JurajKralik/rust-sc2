@@ -78,11 +78,11 @@ pub(crate) type Writer<'a, T> = RwLockWriteGuard<'a, T>;
 pub(crate) type Writer<'a, T> = RefMut<'a, T>;
 
 pub(crate) trait Locked<T> {
-	fn read_lock(&self) -> Reader<T>;
-	fn write_lock(&self) -> Writer<T>;
+	fn read_lock(&self) -> Reader<'_, T>;
+	fn write_lock(&self) -> Writer<'_, T>;
 }
 impl<T> Locked<T> for Rl<T> {
-	fn read_lock(&self) -> Reader<T> {
+	fn read_lock(&self) -> Reader<'_, T> {
 		#[cfg(feature = "rayon")]
 		{
 			#[cfg(feature = "parking_lot")]
@@ -99,7 +99,7 @@ impl<T> Locked<T> for Rl<T> {
 			self.borrow()
 		}
 	}
-	fn write_lock(&self) -> Writer<T> {
+	fn write_lock(&self) -> Writer<'_, T> {
 		#[cfg(feature = "rayon")]
 		{
 			#[cfg(feature = "parking_lot")]
@@ -547,14 +547,14 @@ impl Bot {
 	/// ```
 	/// let count = self.counter().all().tech().count(UnitTypeId::CommandCenter);
 	/// ```
-	pub fn counter(&self) -> CountOptions {
+	pub fn counter(&self) -> CountOptions<'_> {
 		CountOptions::new(self, false)
 	}
 	/// The same as [`counter`](Self::counter), but counts enemy units instead.
 	///
 	/// All information about enemy units count is based on scouting.
 	/// Also there's no way to see ordered enemy units, but bot sees enemy structures in-progress.
-	pub fn enemy_counter(&self) -> CountOptions {
+	pub fn enemy_counter(&self) -> CountOptions<'_> {
 		CountOptions::new(self, true)
 	}
 	pub(crate) fn get_actions(&mut self) -> &[Action] {
@@ -706,7 +706,7 @@ impl Bot {
 		self.state.observation.raw.upgrades.read_lock().contains(&upgrade)
 	}
 	/// Returns a set of upgrades.
-	pub fn upgrades(&self) -> Reader<FxHashSet<UpgradeId>> {
+	pub fn upgrades(&self) -> Reader<'_, FxHashSet<UpgradeId>> {
 		self.state.observation.raw.upgrades.read_lock()
 	}
 	/// Checks if predicted opponent's upgrades contains given upgrade.
@@ -714,7 +714,7 @@ impl Bot {
 		self.enemy_upgrades.read_lock().contains(&upgrade)
 	}
 	/// Returns mutable set of predicted opponent's upgrades.
-	pub fn enemy_upgrades(&self) -> Writer<FxHashSet<UpgradeId>> {
+	pub fn enemy_upgrades(&self) -> Writer<'_, FxHashSet<UpgradeId>> {
 		self.enemy_upgrades.write_lock()
 	}
 	/// Checks if upgrade is in progress.

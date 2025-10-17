@@ -246,13 +246,13 @@ impl ::protobuf::Message for RequestQuery {
         &mut self.unknown_fields
     }
 
-    fn as_any(&self) -> &dyn (::std::any::Any) {
-        self as &dyn (::std::any::Any)
+    fn as_any(&self) -> &dyn ::std::any::Any {
+        self as &dyn ::std::any::Any
     }
-    fn as_any_mut(&mut self) -> &mut dyn (::std::any::Any) {
-        self as &mut dyn (::std::any::Any)
+    fn as_any_mut(&mut self) -> &mut dyn ::std::any::Any {
+        self as &mut dyn ::std::any::Any
     }
-    fn into_any(self: ::std::boxed::Box<Self>) -> ::std::boxed::Box<dyn (::std::any::Any)> {
+    fn into_any(self: ::std::boxed::Box<Self>) -> ::std::boxed::Box<dyn ::std::any::Any> {
         self
     }
 
@@ -319,7 +319,7 @@ impl ::std::fmt::Debug for RequestQuery {
 }
 
 impl ::protobuf::reflect::ProtobufValue for RequestQuery {
-    fn as_ref(&self) -> ::protobuf::reflect::ReflectValueRef {
+    fn as_ref(&self) -> ::protobuf::reflect::ReflectValueRef <'_>{
         ::protobuf::reflect::ReflectValueRef::Message(self)
     }
 }
@@ -516,13 +516,13 @@ impl ::protobuf::Message for ResponseQuery {
         &mut self.unknown_fields
     }
 
-    fn as_any(&self) -> &dyn (::std::any::Any) {
-        self as &dyn (::std::any::Any)
+    fn as_any(&self) -> &dyn ::std::any::Any {
+        self as &dyn ::std::any::Any
     }
-    fn as_any_mut(&mut self) -> &mut dyn (::std::any::Any) {
-        self as &mut dyn (::std::any::Any)
+    fn as_any_mut(&mut self) -> &mut dyn ::std::any::Any {
+        self as &mut dyn ::std::any::Any
     }
-    fn into_any(self: ::std::boxed::Box<Self>) -> ::std::boxed::Box<dyn (::std::any::Any)> {
+    fn into_any(self: ::std::boxed::Box<Self>) -> ::std::boxed::Box<dyn ::std::any::Any> {
         self
     }
 
@@ -583,7 +583,7 @@ impl ::std::fmt::Debug for ResponseQuery {
 }
 
 impl ::protobuf::reflect::ProtobufValue for ResponseQuery {
-    fn as_ref(&self) -> ::protobuf::reflect::ReflectValueRef {
+    fn as_ref(&self) -> ::protobuf::reflect::ReflectValueRef <'_>{
         ::protobuf::reflect::ReflectValueRef::Message(self)
     }
 }
@@ -824,13 +824,13 @@ impl ::protobuf::Message for RequestQueryPathing {
         &mut self.unknown_fields
     }
 
-    fn as_any(&self) -> &dyn (::std::any::Any) {
-        self as &dyn (::std::any::Any)
+    fn as_any(&self) -> &dyn ::std::any::Any {
+        self as &dyn ::std::any::Any
     }
-    fn as_any_mut(&mut self) -> &mut dyn (::std::any::Any) {
-        self as &mut dyn (::std::any::Any)
+    fn as_any_mut(&mut self) -> &mut dyn ::std::any::Any {
+        self as &mut dyn ::std::any::Any
     }
-    fn into_any(self: ::std::boxed::Box<Self>) -> ::std::boxed::Box<dyn (::std::any::Any)> {
+    fn into_any(self: ::std::boxed::Box<Self>) -> ::std::boxed::Box<dyn ::std::any::Any> {
         self
     }
 
@@ -891,7 +891,7 @@ impl ::std::fmt::Debug for RequestQueryPathing {
 }
 
 impl ::protobuf::reflect::ProtobufValue for RequestQueryPathing {
-    fn as_ref(&self) -> ::protobuf::reflect::ReflectValueRef {
+    fn as_ref(&self) -> ::protobuf::reflect::ReflectValueRef <'_>{
         ::protobuf::reflect::ReflectValueRef::Message(self)
     }
 }
@@ -992,13 +992,13 @@ impl ::protobuf::Message for ResponseQueryPathing {
         &mut self.unknown_fields
     }
 
-    fn as_any(&self) -> &dyn (::std::any::Any) {
-        self as &dyn (::std::any::Any)
+    fn as_any(&self) -> &dyn ::std::any::Any {
+        self as &dyn ::std::any::Any
     }
-    fn as_any_mut(&mut self) -> &mut dyn (::std::any::Any) {
-        self as &mut dyn (::std::any::Any)
+    fn as_any_mut(&mut self) -> &mut dyn ::std::any::Any {
+        self as &mut dyn ::std::any::Any
     }
-    fn into_any(self: ::std::boxed::Box<Self>) -> ::std::boxed::Box<dyn (::std::any::Any)> {
+    fn into_any(self: ::std::boxed::Box<Self>) -> ::std::boxed::Box<dyn ::std::any::Any> {
         self
     }
 
@@ -1047,7 +1047,7 @@ impl ::std::fmt::Debug for ResponseQueryPathing {
 }
 
 impl ::protobuf::reflect::ProtobufValue for ResponseQueryPathing {
-    fn as_ref(&self) -> ::protobuf::reflect::ReflectValueRef {
+    fn as_ref(&self) -> ::protobuf::reflect::ReflectValueRef <'_>{
         ::protobuf::reflect::ReflectValueRef::Message(self)
     }
 }
@@ -1148,13 +1148,13 @@ impl ::protobuf::Message for RequestQueryAvailableAbilities {
         &mut self.unknown_fields
     }
 
-    fn as_any(&self) -> &dyn (::std::any::Any) {
-        self as &dyn (::std::any::Any)
+    fn as_any(&self) -> &dyn ::std::any::Any {
+        self as &dyn ::std::any::Any
     }
-    fn as_any_mut(&mut self) -> &mut dyn (::std::any::Any) {
-        self as &mut dyn (::std::any::Any)
+    fn as_any_mut(&mut self) -> &mut dyn ::std::any::Any {
+        self as &mut dyn ::std::any::Any
     }
-    fn into_any(self: ::std::boxed::Box<Self>) -> ::std::boxed::Box<dyn (::std::any::Any)> {
+    fn into_any(self: ::std::boxed::Box<Self>) -> ::std::boxed::Box<dyn ::std::any::Any> {
         self
     }
 
@@ -1203,7 +1203,7 @@ impl ::std::fmt::Debug for RequestQueryAvailableAbilities {
 }
 
 impl ::protobuf::reflect::ProtobufValue for RequestQueryAvailableAbilities {
-    fn as_ref(&self) -> ::protobuf::reflect::ReflectValueRef {
+    fn as_ref(&self) -> ::protobuf::reflect::ReflectValueRef <'_>{
         ::protobuf::reflect::ReflectValueRef::Message(self)
     }
 }
@@ -1380,13 +1380,13 @@ impl ::protobuf::Message for ResponseQueryAvailableAbilities {
         &mut self.unknown_fields
     }
 
-    fn as_any(&self) -> &dyn (::std::any::Any) {
-        self as &dyn (::std::any::Any)
+    fn as_any(&self) -> &dyn ::std::any::Any {
+        self as &dyn ::std::any::Any
     }
-    fn as_any_mut(&mut self) -> &mut dyn (::std::any::Any) {
-        self as &mut dyn (::std::any::Any)
+    fn as_any_mut(&mut self) -> &mut dyn ::std::any::Any {
+        self as &mut dyn ::std::any::Any
     }
-    fn into_any(self: ::std::boxed::Box<Self>) -> ::std::boxed::Box<dyn (::std::any::Any)> {
+    fn into_any(self: ::std::boxed::Box<Self>) -> ::std::boxed::Box<dyn ::std::any::Any> {
         self
     }
 
@@ -1447,7 +1447,7 @@ impl ::std::fmt::Debug for ResponseQueryAvailableAbilities {
 }
 
 impl ::protobuf::reflect::ProtobufValue for ResponseQueryAvailableAbilities {
-    fn as_ref(&self) -> ::protobuf::reflect::ReflectValueRef {
+    fn as_ref(&self) -> ::protobuf::reflect::ReflectValueRef <'_>{
         ::protobuf::reflect::ReflectValueRef::Message(self)
     }
 }
@@ -1632,13 +1632,13 @@ impl ::protobuf::Message for RequestQueryBuildingPlacement {
         &mut self.unknown_fields
     }
 
-    fn as_any(&self) -> &dyn (::std::any::Any) {
-        self as &dyn (::std::any::Any)
+    fn as_any(&self) -> &dyn ::std::any::Any {
+        self as &dyn ::std::any::Any
     }
-    fn as_any_mut(&mut self) -> &mut dyn (::std::any::Any) {
-        self as &mut dyn (::std::any::Any)
+    fn as_any_mut(&mut self) -> &mut dyn ::std::any::Any {
+        self as &mut dyn ::std::any::Any
     }
-    fn into_any(self: ::std::boxed::Box<Self>) -> ::std::boxed::Box<dyn (::std::any::Any)> {
+    fn into_any(self: ::std::boxed::Box<Self>) -> ::std::boxed::Box<dyn ::std::any::Any> {
         self
     }
 
@@ -1699,7 +1699,7 @@ impl ::std::fmt::Debug for RequestQueryBuildingPlacement {
 }
 
 impl ::protobuf::reflect::ProtobufValue for RequestQueryBuildingPlacement {
-    fn as_ref(&self) -> ::protobuf::reflect::ReflectValueRef {
+    fn as_ref(&self) -> ::protobuf::reflect::ReflectValueRef <'_>{
         ::protobuf::reflect::ReflectValueRef::Message(self)
     }
 }
@@ -1796,13 +1796,13 @@ impl ::protobuf::Message for ResponseQueryBuildingPlacement {
         &mut self.unknown_fields
     }
 
-    fn as_any(&self) -> &dyn (::std::any::Any) {
-        self as &dyn (::std::any::Any)
+    fn as_any(&self) -> &dyn ::std::any::Any {
+        self as &dyn ::std::any::Any
     }
-    fn as_any_mut(&mut self) -> &mut dyn (::std::any::Any) {
-        self as &mut dyn (::std::any::Any)
+    fn as_any_mut(&mut self) -> &mut dyn ::std::any::Any {
+        self as &mut dyn ::std::any::Any
     }
-    fn into_any(self: ::std::boxed::Box<Self>) -> ::std::boxed::Box<dyn (::std::any::Any)> {
+    fn into_any(self: ::std::boxed::Box<Self>) -> ::std::boxed::Box<dyn ::std::any::Any> {
         self
     }
 
@@ -1851,7 +1851,7 @@ impl ::std::fmt::Debug for ResponseQueryBuildingPlacement {
 }
 
 impl ::protobuf::reflect::ProtobufValue for ResponseQueryBuildingPlacement {
-    fn as_ref(&self) -> ::protobuf::reflect::ReflectValueRef {
+    fn as_ref(&self) -> ::protobuf::reflect::ReflectValueRef <'_>{
         ::protobuf::reflect::ReflectValueRef::Message(self)
     }
 }

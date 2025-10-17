@@ -5,10 +5,10 @@ use rust_sc2::prelude::*;
 struct PathfindingBot;
 
 impl Player for PathfindingBot {
-    fn get_player_settings(&self) -> PlayerSettings {
-        PlayerSettings::new(Race::Terran)
-            .with_name("PathfindingBot")
-    }
+	fn get_player_settings(&self) -> PlayerSettings<'_> {
+		PlayerSettings::new(Race::Terran)
+			.with_name("PathfindingBot")
+	}
 
     fn on_start(&mut self) -> SC2Result<()> {
 		println!("Pathfinding bot starting!");

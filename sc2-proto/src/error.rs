@@ -703,7 +703,7 @@ impl ::std::default::Default for ActionResult {
 }
 
 impl ::protobuf::reflect::ProtobufValue for ActionResult {
-    fn as_ref(&self) -> ::protobuf::reflect::ReflectValueRef {
+    fn as_ref(&self) -> ::protobuf::reflect::ReflectValueRef<'_> {
         ::protobuf::reflect::ReflectValueRef::Enum(::protobuf::ProtobufEnum::descriptor(self))
     }
 }

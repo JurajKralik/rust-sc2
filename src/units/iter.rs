@@ -447,7 +447,7 @@ where
 		self.find(|u| u.borrow().tag() == tag)
 	}
 	/// Leaves only units with given tags.
-	fn find_tags<T: Container<u64>>(self, tags: &T) -> FindTags<Self, T> {
+	fn find_tags<'a, T: Container<u64>>(self, tags: &'a T) -> FindTags<'a, Self, T> {
 		FindTags::new(self, tags)
 	}
 	/// Leaves only units of given type.
@@ -459,11 +459,11 @@ where
 		ExcludeType::new(self, unit_type)
 	}
 	/// Leaves only units of given types.
-	fn of_types<T: Container<UnitTypeId>>(self, types: &T) -> OfTypes<Self, T> {
+	fn of_types<'a, T: Container<UnitTypeId>>(self, types: &'a T) -> OfTypes<'a, Self, T> {
 		OfTypes::new(self, types)
 	}
 	/// Excludes units of given types.
-	fn exclude_types<T: Container<UnitTypeId>>(self, types: &T) -> ExcludeTypes<Self, T> {
+	fn exclude_types<'a, T: Container<UnitTypeId>>(self, types: &'a T) -> ExcludeTypes<'a, Self, T> {
 		ExcludeTypes::new(self, types)
 	}
 	/// Leaves only non-flying units.
@@ -505,21 +505,21 @@ where
 		Visible::new(self)
 	}
 	/// Leaves only units in attack range of given unit.
-	fn in_range_of(self, unit: &Unit, gap: f32) -> InRangeOf<Self> {
+	fn in_range_of<'a>(self, unit: &'a Unit, gap: f32) -> InRangeOf<'a, Self> {
 		InRangeOf::new(self, unit, gap)
 	}
 	/// Leaves only units that are close enough to attack given unit.
-	fn in_range(self, unit: &Unit, gap: f32) -> InRange<Self> {
+	fn in_range<'a>(self, unit: &'a Unit, gap: f32) -> InRange<'a, Self> {
 		InRange::new(self, unit, gap)
 	}
 	/// Leaves only units in attack range of given unit.
 	/// Unlike [`in_range_of`](Self::in_range_of) this takes range upgrades into account.
-	fn in_real_range_of(self, unit: &Unit, gap: f32) -> InRealRangeOf<Self> {
+	fn in_real_range_of<'a>(self, unit: &'a Unit, gap: f32) -> InRealRangeOf<'a, Self> {
 		InRealRangeOf::new(self, unit, gap)
 	}
 	/// Leaves only units that are close enough to attack given unit.
 	/// Unlike [`in_range`](Self::in_range) this takes range upgrades into account.
-	fn in_real_range(self, unit: &Unit, gap: f32) -> InRealRange<Self> {
+	fn in_real_range<'a>(self, unit: &'a Unit, gap: f32) -> InRealRange<'a, Self> {
 		InRealRange::new(self, unit, gap)
 	}
 }
