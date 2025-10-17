@@ -6,6 +6,7 @@ use crate::{
 	client::SC2Result,
 	consts::{RaceValues, FRAMES_PER_SECOND, INHIBITOR_IDS, RACE_VALUES, TECH_ALIAS, UNIT_ALIAS},
 	debug::{DebugCommand, Debugger},
+	dicts::get_upgrade_for_ability,
 	distance::*,
 	game_data::{Cost, GameData},
 	game_info::GameInfo,
@@ -669,6 +670,36 @@ impl Bot {
 	pub fn can_afford_upgrade(&self, upgrade: UpgradeId) -> bool {
 		let cost = self.get_upgrade_cost(upgrade);
 		self.minerals >= cost.minerals && self.vespene >= cost.vespene
+	}
+	
+	/// Checks if bot has enough resources to research the upgrade associated with given ability.
+	/// 
+	/// This method provides a convenient way to check research affordability using ability IDs
+	/// instead of needing to know the corresponding upgrade ID.
+	/// 
+	/// # Returns
+	/// - `Some(true)` if the research can be afforded
+	/// - `Some(false)` if the research cannot be afforded  
+	/// - `None` if the ability is not associated with any upgrade
+	/// 
+	/// # Example
+	/// ```rust
+	/// use rust_sc2::prelude::*;
+	/// 
+	/// # struct MyBot;
+	/// # impl MyBot {
+	/// #   fn can_afford_ability_research(&self, ability: AbilityId) -> Option<bool> { Some(true) }
+	/// # }
+	/// # let bot = MyBot;
+	/// // Check if we can afford stimpack research
+	/// match bot.can_afford_ability_research(AbilityId::BarracksTechLabResearchStimpack) {
+	///     Some(true) => println!("Can afford stimpack research!"),
+	///     Some(false) => println!("Need more resources for stimpack"),
+	///     None => println!("Stimpack ability not found in research mapping"),
+	/// }
+	/// ```
+	pub fn can_afford_ability_research(&self, ability: AbilityId) -> Option<bool> {
+		get_upgrade_for_ability(ability).map(|upgrade| self.can_afford_upgrade(upgrade))
 	}
 	/*
 	fn can_afford_ability(&self, ability: AbilityId) -> bool {

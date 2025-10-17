@@ -82,12 +82,13 @@ impl Player for PathfindingBot {
 			self.update_vision_with_units(true, true);
 			
 			// Check vision status at a few key positions
+			let start_loc = self.start_location;
 			let map_center = Point2::new(
 				(self.game_info.playable_area.x0 + self.game_info.playable_area.x1) as f32 / 2.0,
 				(self.game_info.playable_area.y0 + self.game_info.playable_area.y1) as f32 / 2.0
 			);
 			let test_positions = vec![
-				self.start_location,
+				start_loc,
 				map_center,
 			];
 			
@@ -107,7 +108,7 @@ impl Player for PathfindingBot {
 			}
 			
 			// Check for fog of war around main base
-			if let Some(fog_positions) = self.get_fog_of_war_positions(self.start_location, 15.0) {
+			if let Some(fog_positions) = self.get_fog_of_war_positions(start_loc, 15.0) {
 				println!("Found {} positions in fog of war near main base", fog_positions.len());
 			}
 		}
