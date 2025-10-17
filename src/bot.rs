@@ -525,28 +525,58 @@ impl Bot {
 	///
 	/// # Examples
 	/// Count all ready marines:
-	/// ```
-	/// let count = self.counter().count(UnitTypeId::Marine);
+	/// ```no_run
+	/// # use rust_sc2::prelude::*;
+	/// # struct MyBot;
+	/// # impl MyBot {
+	/// #   fn counter(&self) -> rust_sc2::bot::CountOptions<'_> { unimplemented!() }
+	/// # }
+	/// # let bot = MyBot;
+	/// let count = bot.counter().count(UnitTypeId::Marine);
 	/// ```
 	///
 	/// Count all supplies in progress:
-	/// ```
-	/// let count = self.counter().ordered().count(UnitTypeId::SupplyDepot);
+	/// ```no_run
+	/// # use rust_sc2::prelude::*;
+	/// # struct MyBot;
+	/// # impl MyBot {
+	/// #   fn counter(&self) -> rust_sc2::bot::CountOptions<'_> { unimplemented!() }
+	/// # }
+	/// # let bot = MyBot;
+	/// let count = bot.counter().ordered().count(UnitTypeId::SupplyDepot);
 	/// ```
 	///
 	/// Count all ready and ordered nexuses:
-	/// ```
-	/// let count = self.counter().all().count(UnitTypeId::Nexus);
+	/// ```no_run
+	/// # use rust_sc2::prelude::*;
+	/// # struct MyBot;
+	/// # impl MyBot {
+	/// #   fn counter(&self) -> rust_sc2::bot::CountOptions<'_> { unimplemented!() }
+	/// # }
+	/// # let bot = MyBot;
+	/// let count = bot.counter().all().count(UnitTypeId::Nexus);
 	/// ```
 	///
 	/// Count all ready zerglings, taking burrowed ones into accont:
-	/// ```
-	/// let count = self.counter().alias().count(UnitTypeId::Zergling);
+	/// ```no_run
+	/// # use rust_sc2::prelude::*;
+	/// # struct MyBot;
+	/// # impl MyBot {
+	/// #   fn counter(&self) -> rust_sc2::bot::CountOptions<'_> { unimplemented!() }
+	/// # }
+	/// # let bot = MyBot;
+	/// let count = bot.counter().alias().count(UnitTypeId::Zergling);
 	/// ```
 	///
 	/// Count all terran bases and alias (orbital, planetary fortress), including ccs in progress:
-	/// ```
-	/// let count = self.counter().all().tech().count(UnitTypeId::CommandCenter);
+	/// ```no_run
+	/// # use rust_sc2::prelude::*;
+	/// # struct MyBot;
+	/// # impl MyBot {
+	/// #   fn counter(&self) -> rust_sc2::bot::CountOptions<'_> { unimplemented!() }
+	/// # }
+	/// # let bot = MyBot;
+	/// let count = bot.counter().all().tech().count(UnitTypeId::CommandCenter);
 	/// ```
 	pub fn counter(&self) -> CountOptions<'_> {
 		CountOptions::new(self, false)

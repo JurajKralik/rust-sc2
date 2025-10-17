@@ -88,7 +88,7 @@ use rust_sc2::prelude::*;
 #[derive(Default)]
 struct WorkerRush;
 impl Player for WorkerRush {
-    fn get_player_settings(&self) -> PlayerSettings {
+    fn get_player_settings(&self) -> PlayerSettings<'_> {
         PlayerSettings::new(Race::Protoss)
     }
     fn on_start(&mut self) -> SC2Result<()> {
@@ -164,7 +164,7 @@ Then implement `Player` trait for your bot:
 // You mustn't call any of these methods by hands, they're for API only
 impl Player for MyBot {
     // Must be implemented
-    fn get_player_settings(&self) -> PlayerSettings {
+    fn get_player_settings(&self) -> PlayerSettings<'_> {
         // Race can be Terran, Zerg, Protoss or Random
         PlayerSettings::new(Race::Random)
     }

@@ -5,7 +5,7 @@ A Rust implementation of the StarCraft II API for creating bots.
 
 ## Quick Start
 
-```rust
+```no_run
 use rust_sc2::prelude::*;
 
 #[bot]
@@ -13,7 +13,7 @@ use rust_sc2::prelude::*;
 struct MyBot;
 
 impl Player for MyBot {
-    fn get_player_settings(&self) -> PlayerSettings {
+    fn get_player_settings(&self) -> PlayerSettings<'_> {
         PlayerSettings::new(Race::Random).with_name("MyBot")
     }
     
@@ -36,7 +36,7 @@ fn main() -> SC2Result<()> {
 See examples and documentation for more details.
 */
 // #![warn(missing_docs)]
-#![deny(broken_intra_doc_links)]
+#![deny(rustdoc::broken_intra_doc_links)]
 #![allow(clippy::upper_case_acronyms)]
 
 #[macro_use]
@@ -125,12 +125,21 @@ pub use client::SC2Result;
 Request to the SC2 API.
 
 # Usage
-```
+```no_run
+use rust_sc2::prelude::*;
+use rust_sc2::Request;
+
+# struct MyBot;
+# impl MyBot {
+#   fn api(&self) -> &rust_sc2::api::API { unimplemented!() }
+# }
+# let bot = MyBot;
 let mut request = Request::new();
 
 /* modify request through it's methods */
 
-let response = self.api().send(request)?;
+let response = bot.api().send(request)?;
+# Ok::<(), Box<dyn std::error::Error>>(())
 ```
 */
 pub use sc2_proto::sc2api::Request;

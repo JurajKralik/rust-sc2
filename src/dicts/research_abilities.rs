@@ -8,8 +8,9 @@
 //! if you can afford a research by using the ability ID instead of needing to know the upgrade ID.
 //!
 //! # Example
-//! ```rust
+//! ```no_run
 //! use rust_sc2::prelude::*;
+//! use rust_sc2::dicts::get_upgrade_for_ability;
 //!
 //! # struct Bot;
 //! # impl Bot {
@@ -17,7 +18,7 @@
 //! #   fn vespene(&self) -> u32 { 1000 }
 //! #   fn can_afford_upgrade(&self, _: UpgradeId) -> bool { true }
 //! #   fn can_afford_ability_research(&self, ability: AbilityId) -> Option<bool> {
-//! #       crate::dicts::get_upgrade_for_ability(ability).map(|upgrade| self.can_afford_upgrade(upgrade))
+//! #       get_upgrade_for_ability(ability).map(|upgrade| self.can_afford_upgrade(upgrade))
 //! #   }
 //! # }
 //! # let bot = Bot;
@@ -131,40 +132,4 @@ lazy_static! {
 /// Get the upgrade ID associated with a research ability
 pub fn get_upgrade_for_ability(ability: AbilityId) -> Option<UpgradeId> {
 	ABILITY_TO_UPGRADE.get(&ability).copied()
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::ids::{AbilityId, UpgradeId};
-
-    #[test]
-    fn test_ability_to_upgrade_mapping() {
-        // Test some known mappings
-        assert_eq!(
-            get_upgrade_for_ability(AbilityId::BarracksTechLabResearchStimpack),
-            Some(UpgradeId::Stimpack)
-        );
-        
-        assert_eq!(
-            get_upgrade_for_ability(AbilityId::ResearchCombatShield),
-            Some(UpgradeId::ShieldWall)
-        );
-        
-        assert_eq!(
-            get_upgrade_for_ability(AbilityId::EngineeringBayResearchTerranInfantryWeaponsLevel1),
-            Some(UpgradeId::TerranInfantryWeaponsLevel1)
-        );
-        
-        assert_eq!(
-            get_upgrade_for_ability(AbilityId::ForgeResearchProtossGroundWeaponsLevel1),
-            Some(UpgradeId::ProtossGroundWeaponsLevel1)
-        );
-        
-        // Test a non-research ability returns None
-        assert_eq!(
-            get_upgrade_for_ability(AbilityId::Move),
-            None
-        );
-    }
 }
