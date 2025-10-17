@@ -4,13 +4,11 @@ use crate::{helpers::round_point2, path_find::PathFind};
 use std::collections::HashSet;
 
 use super::chokes::{group_chokes, Choke};
-use super::tactical::TacticalPosition;
 use super::vision::{VisionMap, VisionUnit};
 use crate::mapping::chokes::solve_chokes;
 use crate::mapping::climb::modify_climb;
 use crate::mapping::map_point;
 use crate::mapping::map_point::Cliff;
-use crate::mapping::tactical;
 
 const DIFFERENCE: usize = 16;
 const Y_MULT: usize = 1000000;
@@ -27,10 +25,6 @@ pub struct Map {
     pub influence_reaper_map: bool,
     pub chokes: Vec<Choke>,
     pub vision_map: VisionMap,
-    pub tactical_positions: Vec<TacticalPosition>,
-    choke_raw: Vec<((usize, usize), (usize, usize))>,
-    x_bounds: (usize, usize),
-    y_bounds: (usize, usize),
 }
 
 impl Map {
@@ -52,34 +46,6 @@ impl Map {
     pub fn vision_map_draw(&self) -> Vec<Vec<usize>> { self.vision_map.draw_vision() }
     pub fn overlord_spots(&self) -> &Vec<(f32, f32)> { &self.overlord_spots }
     pub fn chokes(&self) -> &Vec<Choke> { &self.chokes }
-    
-    /// Get tactical positions for siege units (e.g., Siege Tanks)
-    /// 
-    /// Returns positions suitable for sieging, sorted by tactical value (best first).
-    /// Positions are evaluated based on high ground advantage, defensibility, and choke coverage.
-    pub fn tactical_positions(&self) -> &Vec<TacticalPosition> { &self.tactical_positions }
-    
-    /// Calculate tactical positions for a specific unit type
-    /// 
-    /// # Arguments
-    /// * `unit_radius` - Radius of the unit (e.g., 1.25 for Siege Tank in Siege Mode)
-    /// * `attack_range` - Attack range when in position (e.g., 13.0 for Siege Tank)
-    /// 
-    /// # Returns
-    /// Vector of tactical positions sorted by score (best first)
-    pub fn calculate_tactical_positions(&self, unit_radius: f32, attack_range: f32) -> Vec<TacticalPosition> {
-        tactical::calculate_tactical_positions(
-            &self.points,
-            &self.ground_pathing,
-            &self.choke_raw,
-            self.x_bounds.0,
-            self.y_bounds.0,
-            self.x_bounds.1,
-            self.y_bounds.1,
-            unit_radius,
-            attack_range,
-        )
-    }
 
     fn draw_climbs(&self) -> Vec<Vec<usize>> {
         let width = self.ground_pathing.map.len();
@@ -435,19 +401,6 @@ impl Map {
         let influence_colossus_map = false;
         let influence_reaper_map = false;
         let chokes = group_chokes(&mut choke_lines, &mut points);
-        
-        // Calculate default tactical positions for Siege Tanks (radius 1.25, range 13.0)
-        let tactical_positions = tactical::calculate_tactical_positions(
-            &points,
-            &ground_pathing,
-            &choke_lines,
-            x_start,
-            y_start,
-            x_end,
-            y_end,
-            1.25,  // Siege Tank radius in siege mode
-            13.0,  // Siege Tank attack range
-        );
 
         Map { ground_pathing,
               air_pathing,
@@ -458,11 +411,7 @@ impl Map {
               influence_colossus_map,
               influence_reaper_map,
               chokes,
-              vision_map,
-              tactical_positions,
-              choke_raw: choke_lines,
-              x_bounds: (x_start, x_end),
-              y_bounds: (y_start, y_end) }
+              vision_map }
     }
 
     fn get_map(&self, map_type: u8) -> &PathFind {

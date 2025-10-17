@@ -8,5 +8,4 @@ pub mod path_find;
 pub use mapping::map::Map;
 pub use mapping::vision::VisionUnit;
 pub use mapping::chokes::Choke;
-pub use mapping::tactical::TacticalPosition;
 pub use path_find::PathFind;
