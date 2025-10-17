@@ -30,7 +30,7 @@ pub fn bot(_attr: TokenStream, item: TokenStream) -> TokenStream {
 
 	TokenStream::from(quote! {
 		#(#attrs)*
-		#vis struct #name#generics {
+		#vis struct #name #generics {
 			_bot: rust_sc2::bot::Bot,
 			#fields
 		}
