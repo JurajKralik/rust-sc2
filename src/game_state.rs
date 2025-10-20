@@ -293,7 +293,7 @@ where
 }
 
 /// Messege in game chat.
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct ChatMessage {
 	/// Id of player who sent that message.
 	pub player_id: u32,
