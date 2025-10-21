@@ -28,6 +28,7 @@ use sc2_proto::raw::{
 	UnitOrder_oneof_target as ProtoTarget,
 };
 use std::cmp::Ordering;
+use std::f32::consts::PI;
 use crate::consts::ON_CREEP_SPEED_UPGRADES;
 
 #[derive(Default, Debug, Clone, Copy)]
@@ -600,6 +601,22 @@ impl Unit {
 		self.position()
 			.offset(offset * self.facing().cos(), offset * self.facing().sin())
 	}
+	
+	/// Checks if this unit is facing position.
+	///  
+	/// Suggested angle error is around `0.1` (radians).
+	pub fn is_facing(&self, position: &Point2, angle_error: f32) -> bool {
+		let dx = position.x - self.position().x;
+		let dy = position.y - self.position().y;
+		let mut angle = dy.atan2(dx);
+		if angle < 0.0 {
+			angle += 2.0 * PI;
+		}
+		let angle_difference = (angle - self.facing()).abs();
+		
+		angle_difference < angle_error
+	}
+	
 	/// Checks if unit is fully visible.
 	pub fn is_visible(&self) -> bool {
 		self.display_type().is_visible()
