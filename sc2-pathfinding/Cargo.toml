@@ -18,6 +18,7 @@ arrayvec = "0.7.6"
 criterion = "0.7.0"
 image = "0.25"
 numpy = "0.22"
+pyo3 = "0.22"
 
 [[bench]]
 name = "path_benchmark"

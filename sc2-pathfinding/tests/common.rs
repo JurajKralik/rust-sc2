@@ -5,6 +5,8 @@ use std::io::{BufRead, BufReader};
 use image::{RgbImage, Rgb};
 use std::fs;
 use std::io::Read;
+use numpy::{PyArray2, PyArrayMethods};
+use pyo3::prelude::*;
 
 fn rot90(vec: Vec<Vec<usize>>) -> Vec<Vec<usize>> {
     let new_height = vec.len();
@@ -50,6 +52,107 @@ pub fn get_choke_map() -> Map {
 
     let map = Map::new(grid, grid2, grid_height, 2, 2, 38, 38);
     map
+}
+
+/// Load a numpy .npy file and convert to Vec<Vec<usize>>
+fn load_npy_as_grid(file_path: &str) -> Result<Vec<Vec<usize>>, Box<dyn std::error::Error>> {
+    pyo3::prepare_freethreaded_python();
+    
+    let result = Python::with_gil(|py| -> PyResult<Vec<Vec<usize>>> {
+        let numpy = py.import_bound("numpy")?;
+        let array = numpy.call_method1("load", (file_path,))?;
+        
+        // Try uint8 first (most common for SC2 maps)
+        if let Ok(array) = array.downcast::<PyArray2<u8>>() {
+            let array_view = unsafe { array.as_array() };
+            let shape = array_view.shape();
+            let rows = shape[0];
+            let cols = shape[1];
+            
+            let mut grid = Vec::new();
+            for row_idx in 0..rows {
+                let mut grid_row = Vec::new();
+                for col_idx in 0..cols {
+                    let val = array_view[[row_idx, col_idx]];
+                    // uint8 values should be 0 or 1 already
+                    grid_row.push(val as usize);
+                }
+                grid.push(grid_row);
+            }
+            Ok(grid)
+        } else if let Ok(array) = array.downcast::<PyArray2<f32>>() {
+            let array_view = unsafe { array.as_array() };
+            let shape = array_view.shape();
+            let rows = shape[0];
+            let cols = shape[1];
+            
+            let mut grid = Vec::new();
+            for row_idx in 0..rows {
+                let mut grid_row = Vec::new();
+                for col_idx in 0..cols {
+                    let val = array_view[[row_idx, col_idx]];
+                    // Convert float values to usize (0 or 1 for pathable/non-pathable)
+                    grid_row.push(if val > 0.5 { 1 } else { 0 });
+                }
+                grid.push(grid_row);
+            }
+            Ok(grid)
+        } else {
+            Err(pyo3::PyErr::new::<pyo3::exceptions::PyTypeError, _>("Unsupported array type"))
+        }
+    })?;
+    
+    Ok(result)
+}
+
+/// Create AutomatonLE map using actual .npy data files
+pub fn get_automaton_le_map_npy() -> Result<Map, Box<dyn std::error::Error>> {
+    // Load the actual map data from .npy files
+    let pathing_grid = load_npy_as_grid("tests/AutomatonLE_pathing.npy")?;
+    let placement_grid = load_npy_as_grid("tests/AutomatonLE_placement.npy")?;
+    let height_grid = load_npy_as_grid("tests/AutomatonLE_height.npy")?;
+    
+    // Get grid dimensions
+    let height = pathing_grid.len();
+    let width = if height > 0 { pathing_grid[0].len() } else { 0 };
+    
+    println!("AutomatonLE .npy grid dimensions: {}x{}", height, width);
+    
+    // AutomatonLE map dimensions with safer boundaries
+    let x_start = 4;
+    let y_start = 4;
+    let x_end = if height > 8 { height - 4 } else { height.saturating_sub(1) };
+    let y_end = if width > 8 { width - 4 } else { width.saturating_sub(1) };
+    
+    println!("Using map boundaries: x_start={}, y_start={}, x_end={}, y_end={}", x_start, y_start, x_end, y_end);
+    
+    let map = Map::new(pathing_grid, placement_grid, height_grid, x_start, y_start, x_end, y_end);
+    Ok(map)
+}
+
+/// Create Submarine LE map using actual .npy data files
+pub fn get_submarine_le_map_npy() -> Result<Map, Box<dyn std::error::Error>> {
+    // Load the actual map data from .npy files
+    let pathing_grid = load_npy_as_grid("tests/Submarine LE_pathing.npy")?;
+    let placement_grid = load_npy_as_grid("tests/Submarine LE_placement.npy")?;
+    let height_grid = load_npy_as_grid("tests/Submarine LE_height.npy")?;
+    
+    // Get grid dimensions
+    let height = pathing_grid.len();
+    let width = if height > 0 { pathing_grid[0].len() } else { 0 };
+    
+    println!("Submarine LE .npy grid dimensions: {}x{}", height, width);
+    
+    // Submarine LE map dimensions with safer boundaries
+    let x_start = 4;
+    let y_start = 4;
+    let x_end = if height > 8 { height - 4 } else { height.saturating_sub(1) };
+    let y_end = if width > 8 { width - 4 } else { width.saturating_sub(1) };
+    
+    println!("Using map boundaries: x_start={}, y_start={}, x_end={}, y_end={}", x_start, y_start, x_end, y_end);
+    
+    let map = Map::new(pathing_grid, placement_grid, height_grid, x_start, y_start, x_end, y_end);
+    Ok(map)
 }
 
 pub fn get_automaton_le_map() -> Map {
