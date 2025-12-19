@@ -16,6 +16,8 @@ arrayvec = "0.7.6"
 
 [dev-dependencies]
 criterion = "0.7.0"
+image = "0.25"
+numpy = "0.22"
 
 [[bench]]
 name = "path_benchmark"
