@@ -1,8 +1,7 @@
 #![allow(deprecated)]
-#![allow(non_local_definitions)]
 
 #[cfg(feature = "serde")]
-use serde::{Deserialize, Serialize};
+use serde::{Serialize, Deserialize};
 
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Debug, FromPrimitive, ToPrimitive, Copy, Clone, PartialEq, Eq, Hash)]
@@ -345,6 +344,7 @@ pub enum AbilityId {
 	ResearchZerglingMetabolicBoost = 1253,
 	ResearchGroovedSpines = 1282,
 	ResearchMuscularAugments = 1283,
+	HydraliskDenResearchFrenzy = 1284,
 	HydraliskDenResearchLurkerRange = 1286,
 	ResearchZergFlyerAttackLevel1 = 1312,
 	ResearchZergFlyerAttackLevel2 = 1313,
@@ -1602,7 +1602,11 @@ pub enum AbilityId {
 	LoadOutSprayLoadOutSpray14 = 4126,
 	MorphToCollapsibleRockTowerDebrisRampLeftGreenCancel = 4283,
 	MorphToCollapsibleRockTowerDebrisRampRightGreenCancel = 4286,
-	MorphToBanelingBaneling = 4431,
-	MorphToBanelingCancel = 4432,
-	MothershipCloakOracleCloakField = 4434,
+	MorphToBanelingBaneling = 4433,
+	MorphToBanelingCancel = 4434,
+	MothershipCloakOracleCloakField = 4436,
+	EnergyRechargeEnergyRecharge = 4438,
+	SalvageEffectSalvage = 4440,
+	SalvageSensorTowerRefundSalvage = 4442,
+	WorkerStopIdleAbilityVespeneGather = 4444,
 }

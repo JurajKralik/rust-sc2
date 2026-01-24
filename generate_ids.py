@@ -1,6 +1,14 @@
 from json import load
 from pathlib import Path
 from sys import argv
+import logging
+
+# Configure logging
+logging.basicConfig(
+	level=logging.INFO,
+	format='%(levelname)s: %(message)s'
+)
+logger = logging.getLogger(__name__)
 
 HEAD = """\
 #![allow(deprecated)]
@@ -110,8 +118,7 @@ def parse_data(data, version=None):
 		key = key.replace("ResearchResearch", "Research")
 
 		if key in abilities and v["index"] == 0:
-			# print(f"{key} has value 0 and id {v['id']}, overwriting {key}: {abilities[key]}")
-			# Commented out to try to fix: 3670 is not a valid AbilityId
+			logger.debug(f"{key} has value 0 and id {v['id']}, overwriting {key}: {abilities[key]}")
 			abilities[key] = v["id"]
 			pass
 		else:
@@ -167,6 +174,7 @@ def gen_enum(enum, name):
 
 
 def generate():
+	logger.info("Starting ID generation from stableid.json")
 	mod = [
 		[
 			"//! Auto generated with `generate_ids.py` script from `stableid.json`",
@@ -177,9 +185,14 @@ def generate():
 		[],
 		["mod impls;"],
 	]
-	enums_latest = parse_data(
-		load((Path.home() / "Documents" / "StarCraft II" / "stableid.json").open())
-	)
+	
+	stableid_path = Path.home() / "Documents" / "StarCraft II" / "stableid.json"
+	if not stableid_path.exists():
+		logger.error(f"stableid.json not found at: {stableid_path}")
+		return
+	
+	logger.info(f"Reading stableid.json from: {stableid_path}")
+	enums_latest = parse_data(load(stableid_path.open()))
 	enums_linux = enums_latest
 	# parse_data(
 	# 	load(
@@ -191,6 +204,7 @@ def generate():
 	for name, file, enum, enum_linux in zip(
 		ENUM_NAMES, FILE_NAMES, enums_latest, enums_linux
 	):
+		logger.info(f"Generating {name} enum in {file}.rs")
 		if enum == enum_linux:
 			generated = f"{HEAD}\n{gen_enum(enum, name)}"
 		else:
@@ -201,12 +215,18 @@ def generate():
 				+ gen_enum(enum_linux, name)
 			)
 
-		(Path.cwd() / "src" / "ids" / f"{file}.rs").write_text(generated)
+		output_path = Path.cwd() / "src" / "ids" / f"{file}.rs"
+		output_path.write_text(generated)
+		logger.info(f"Successfully wrote {output_path}")
 		mod[1].append(f"mod {file};")
 		mod[2].append(f"pub use {file}::{name};")
-	(Path.cwd() / "src" / "ids" / "mod.rs").write_text(
+	
+	mod_path = Path.cwd() / "src" / "ids" / "mod.rs"
+	mod_path.write_text(
 		"\n\n".join("\n".join(part) for part in mod) + "\n"
 	)
+	logger.info(f"Successfully wrote {mod_path}")
+	logger.info("ID generation completed successfully")
 
 
 if __name__ == "__main__":

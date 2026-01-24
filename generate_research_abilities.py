@@ -2,6 +2,14 @@
 import re
 import requests
 from pathlib import Path
+import logging
+
+# Configure logging
+logging.basicConfig(
+	level=logging.INFO,
+	format='%(levelname)s: %(message)s'
+)
+logger = logging.getLogger(__name__)
 
 
 ABILITY_RS_PATH = Path("src/ids/ability_id.rs")
@@ -10,12 +18,15 @@ UPGRADE_RS_PATH = Path("src/ids/upgrade_id.rs")
 OUT_PATH        = Path("src/dicts/research_abilities.rs")
 URL = "https://raw.githubusercontent.com/BurnySc2/python-sc2/develop/sc2/dicts/unit_research_abilities.py"
 
+logger.info("Fetching research abilities data from python-sc2")
 code = requests.get(URL).text
 ns = {}
 exec(code, ns)
 RESEARCH_INFO = ns["RESEARCH_INFO"]
+logger.info(f"Successfully loaded RESEARCH_INFO with {len(RESEARCH_INFO)} units")
 
 def parse_rust_enum_variants(path: Path, enum_name: str) -> dict[int, str]:
+    logger.info(f"Parsing {enum_name} from {path}")
     text = path.read_text(encoding="utf8")
 
     m = re.search(rf'pub\s+enum\s+{enum_name}\s*\{{', text)
@@ -52,21 +63,21 @@ def render_unit(unit):
     if unit.value in unit_id_to_name:
         return f"UnitTypeId::{unit_id_to_name[unit.value]}"
     else:
-        print(f"Unit {unit.name}({unit.value}) not in Rust enums")
+        logger.warning(f"Unit {unit.name}({unit.value}) not in Rust enums")
         return None
 
 def render_ability(ability):
     if ability.value in ability_id_to_name:
         return f"AbilityId::{ability_id_to_name[ability.value]}"
     else:
-        print(f"Ability {ability.name}({ability.value}) not in Rust enums")
+        logger.warning(f"Ability {ability.name}({ability.value}) not in Rust enums")
         return None
 
 def render_upgrade(upgrade):
     if upgrade.value in upgrade_id_to_name:
         return f"UpgradeId::{upgrade_id_to_name[upgrade.value]}"
     else:
-        print(f"Upgrade {upgrade.name}({upgrade.value}) not in Rust enums")
+        logger.warning(f"Upgrade {upgrade.name}({upgrade.value}) not in Rust enums")
         return None
 
 lines = []
@@ -120,7 +131,8 @@ lines.append("pub fn get_upgrade_for_ability(ability: AbilityId) -> Option<Upgra
 lines.append("\tABILITY_TO_UPGRADE.get(&ability).copied()")
 lines.append("}")
 
+logger.info(f"Writing output to {OUT_PATH}")
 OUT_PATH.parent.mkdir(parents=True, exist_ok=True)
 OUT_PATH.write_text("\n".join(lines), encoding="utf8")
-print(f"Generated {OUT_PATH}")
-print(f"Found {len(ability_to_upgrade)} ability->upgrade mappings")
+logger.info(f"Successfully generated {OUT_PATH}")
+logger.info(f"Found {len(ability_to_upgrade)} ability->upgrade mappings")

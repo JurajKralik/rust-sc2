@@ -1,8 +1,7 @@
 #![allow(deprecated)]
-#![allow(non_local_definitions)]
 
 #[cfg(feature = "serde")]
-use serde::{Deserialize, Serialize};
+use serde::{Serialize, Deserialize};
 
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Debug, FromPrimitive, ToPrimitive, Copy, Clone, PartialEq, Eq, Hash)]
@@ -327,5 +326,6 @@ pub enum UpgradeId {
 	PsionicAmplifiers = 301,
 	SecretedCoating = 302,
 	HurricaneThrusters = 303,
-	InterferenceMatrix = 304,
+	Frenzy = 304,
+	InterferenceMatrix = 305,
 }

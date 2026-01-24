@@ -1,8 +1,7 @@
 #![allow(deprecated)]
-#![allow(non_local_definitions)]
 
 #[cfg(feature = "serde")]
-use serde::{Deserialize, Serialize};
+use serde::{Serialize, Deserialize};
 
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Debug, FromPrimitive, ToPrimitive, Copy, Clone, PartialEq, Eq, Hash)]
@@ -306,14 +305,15 @@ pub enum BuffId {
 	AmorphousArmorcloud = 296,
 	RavenShredderMissileArmorReductionUISubtruct = 297,
 	BatteryOvercharge = 298,
-	ImmortalShield = 299,
+	DummyBuff001 = 299,
 	DummyBuff002 = 300,
 	DummyBuff003 = 301,
 	DummyBuff004 = 302,
-	DummyBuff005 = 303,
-	OnCreepQueen = 304,
+	OnCreepVisible = 303,
 	LoadOutSprayTracker = 305,
 	CloakField = 306,
 	TakenDamage = 307,
 	RavenScramblerMissileCarrier = 308,
+	HydraliskFrenzy = 309,
+	BroodlingAllowAttack = 310,
 }
