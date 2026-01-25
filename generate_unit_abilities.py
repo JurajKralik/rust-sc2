@@ -16,11 +16,70 @@ ABILITY_RS_PATH = Path("src/ids/ability_id.rs")
 UNIT_RS_PATH    = Path("src/ids/unit_typeid.rs")
 OUT_PATH        = Path("src/dicts/unit_abilities.rs")
 URL = "https://raw.githubusercontent.com/BurnySc2/python-sc2/develop/sc2/dicts/unit_abilities.py"
+UNIT_ID_URL = "https://raw.githubusercontent.com/BurnySc2/python-sc2/develop/sc2/ids/unit_typeid.py"
+ABILITY_ID_URL = "https://raw.githubusercontent.com/BurnySc2/python-sc2/develop/sc2/ids/ability_id.py"
 
 logger.info("Fetching unit abilities data from python-sc2")
-code = requests.get(URL).text
+raw_code = requests.get(URL).text
+
+logger.info("Fetching UnitTypeId definitions")
+unit_id_code = requests.get(UNIT_ID_URL).text
+
+logger.info("Fetching AbilityId definitions")
+ability_id_code = requests.get(ABILITY_ID_URL).text
+
+# Parse ID values from python-sc2
+import re
+unit_id_values = {}
+for match in re.finditer(r'([A-Z_0-9]+)\s*=\s*(\d+)', unit_id_code):
+    name, value = match.groups()
+    unit_id_values[name] = int(value)
+
+ability_id_values = {}
+for match in re.finditer(r'([A-Z_0-9]+)\s*=\s*(\d+)', ability_id_code):
+    name, value = match.groups()
+    ability_id_values[name] = int(value)
+
+logger.info(f"Loaded {len(unit_id_values)} unit IDs and {len(ability_id_values)} ability IDs")
+
+# Remove the sc2 imports to avoid protobuf issues
+code_lines = raw_code.split('\n')
+filtered_lines = []
+for line in code_lines:
+    if line.strip().startswith('from sc2') or line.strip().startswith('import sc2'):
+        continue
+    filtered_lines.append(line)
+filtered_code = '\n'.join(filtered_lines)
+
+# Create mock classes with actual values
 ns = {}
-exec(code, ns)
+exec("""
+class MockId:
+    def __init__(self, name, value):
+        self.name = name
+        self.value = value
+    def __repr__(self):
+        return f"{self.__class__.__name__}({self.name}, {self.value})"
+    def __hash__(self):
+        return hash(self.value)
+    def __eq__(self, other):
+        return self.value == other.value
+
+class UnitTypeId(MockId):
+    pass
+
+class AbilityId(MockId):
+    pass
+""", ns)
+
+# Create instances with actual values
+for name, value in unit_id_values.items():
+    setattr(ns['UnitTypeId'], name, ns['UnitTypeId'](name, value))
+
+for name, value in ability_id_values.items():
+    setattr(ns['AbilityId'], name, ns['AbilityId'](name, value))
+
+exec(filtered_code, ns)
 UNIT_ABILITIES = ns["UNIT_ABILITIES"]
 logger.info(f"Successfully loaded UNIT_ABILITIES with {len(UNIT_ABILITIES)} units")
 
@@ -74,6 +133,8 @@ def render_ability(ability):
 lines = []
 lines.append("// THIS FILE WAS AUTOMATICALLY GENERATED.")
 lines.append("// Source: python-sc2 sc2/dicts/unit_abilities.py")
+lines.append("")
+lines.append("#![allow(non_upper_case_globals)]")
 lines.append("")
 lines.append("use crate::ids::{AbilityId, UnitTypeId};")
 lines.append("use std::collections::{HashMap, HashSet};")

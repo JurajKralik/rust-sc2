@@ -702,7 +702,7 @@ impl Unit {
 	}
 	/// Returns summed health and shield. Not populated for snapshots.
 	pub fn hits(&self) -> u32 {
-		let extra_shield = if self.has_buff(BuffId::ImmortalShield) {
+		let extra_shield = if self.has_buff(BuffId::ImmortalOverload) {
 			100
 		} else {
 			0

@@ -1,6 +1,8 @@
 // THIS FILE WAS AUTOMATICALLY GENERATED.
 // Source: python-sc2 sc2/dicts/unit_abilities.py
 
+#![allow(non_upper_case_globals)]
+
 use crate::ids::{AbilityId, UnitTypeId};
 use std::collections::{HashMap, HashSet};
 use lazy_static::lazy_static;
@@ -906,7 +908,7 @@ lazy_static! {
 			HashSet::from([
 				AbilityId::ResearchGroovedSpines,
 				AbilityId::ResearchMuscularAugments,
-				// Ability HYDRALISKDENRESEARCH_RESEARCHFRENZY(1284) not in Rust enums,
+				AbilityId::HydraliskDenResearchFrenzy,
 			]),
 		);
 		m.insert(
