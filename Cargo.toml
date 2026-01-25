@@ -41,4 +41,5 @@ clap = { version = "4", features = ["derive"] }
 protoc = ["sc2-proto/protoc-rust"]
 enemies_cache = []
 wine_sc2 = []
+headless = []
 rayon = ["dep:rayon", "indexmap/rayon", "ndarray/rayon"]
