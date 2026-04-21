@@ -97,22 +97,19 @@ pub fn solve_chokes(points: &mut Vec<Vec<map_point::MapPoint>>,
 #[derive(Clone)]
 pub struct Choke {
     pub main_line: (Point2, Point2),
-    pub lines: Vec<((usize, usize), (usize, usize))>,
-    pub side1: Vec<(usize, usize)>,
-    pub side2: Vec<(usize, usize)>,
+    pub lines: Vec<(Point2, Point2)>,
+    pub side1: Vec<Point2>,
+    pub side2: Vec<Point2>,
     pub pixels: Vec<(usize, usize)>,
     pub min_length: f32,
 }
 impl Choke {
-    pub fn lines(&self) -> &Vec<((usize, usize), (usize, usize))> { &self.lines }
-    pub fn side1(&self) -> &Vec<(usize, usize)> { &self.side1 }
-    pub fn side2(&self) -> &Vec<(usize, usize)> { &self.side2 }
+    pub fn lines(&self) -> &Vec<(Point2, Point2)> { &self.lines }
+    pub fn side1(&self) -> &Vec<Point2> { &self.side1 }
+    pub fn side2(&self) -> &Vec<Point2> { &self.side2 }
     pub fn main_line(&self) -> (Point2, Point2) { self.main_line }
     pub fn pixels(&self) -> &Vec<(usize, usize)> { &self.pixels }
-
     pub fn get_min_length(&self) -> f32 { self.min_length }
-
-    /// Returns the center point of the choke (midpoint of the main line).
     pub fn center(&self) -> Point2 {
         self.main_line.0.midpoint(self.main_line.1)
     }
@@ -120,16 +117,14 @@ impl Choke {
 
 impl Choke {
     pub fn new(line: ((usize, usize), (usize, usize))) -> Self {
-        let mut lines = Vec::<((usize, usize), (usize, usize))>::new();
-        lines.push(line);
-        let mut side1 = Vec::<(usize, usize)>::new();
-        side1.push(line.0);
-        let mut side2 = Vec::<(usize, usize)>::new();
-        side2.push(line.1);
+        let p0 = Point2::new(line.0.0 as f32, line.0.1 as f32);
+        let p1 = Point2::new(line.1.0 as f32, line.1.1 as f32);
+        let lines = vec![(p0, p1)];
+        let side1 = vec![p0];
+        let side2 = vec![p1];
         let pixels = Vec::<(usize, usize)>::new();
         // Real main line is created later on by calculating averages
-        let main_line = (Point2::new((line.0).0 as f32, (line.0).1 as f32),
-                         Point2::new((line.1).0 as f32, (line.1).1 as f32));
+        let main_line = (p0, p1);
         let min_length = distance(line.0, line.1);
         Choke { main_line,
                 lines,
@@ -140,12 +135,14 @@ impl Choke {
     }
 
     fn add_line(&mut self, point1: (usize, usize), point2: (usize, usize)) {
-        self.lines.push((point1, point2));
-        if !self.side1.contains(&point1) {
-            self.side1.push(point1);
+        let p1 = Point2::new(point1.0 as f32, point1.1 as f32);
+        let p2 = Point2::new(point2.0 as f32, point2.1 as f32);
+        self.lines.push((p1, p2));
+        if !self.side1.contains(&p1) {
+            self.side1.push(p1);
         }
-        if !self.side2.contains(&point2) {
-            self.side2.push(point2);
+        if !self.side2.contains(&p2) {
+            self.side2.push(p2);
         }
     }
 
@@ -158,7 +155,7 @@ impl Choke {
         let mut distances = Vec::<f32>::new();
         let mut min_distance = 999f32;
         for line in &self.lines {
-            let d = distance(line.0, line.1);
+            let d = distance((line.0.x as usize, line.0.y as usize), (line.1.x as usize, line.1.y as usize));
             distances.push(d);
             if d < min_distance {
                 min_distance = d;
@@ -177,8 +174,8 @@ impl Choke {
 
     fn set_points(&mut self, points: &mut Vec<Vec<map_point::MapPoint>>) {
         for line in &self.lines {
-            let pos1 = Pos((line.0).0, (line.0).1);
-            let pos2 = Pos((line.1).0, (line.1).1);
+            let pos1 = Pos(line.0.x as usize, line.0.y as usize);
+            let pos2 = Pos(line.1.x as usize, line.1.y as usize);
 
             points[pos1.0][pos1.1].is_choke = true;
             points[pos2.0][pos2.1].is_choke = true;
@@ -207,23 +204,21 @@ impl Choke {
     }
 
     fn calc_final_line(&mut self) {
-        let mut x_sum: usize = 0;
-        let mut y_sum: usize = 0;
+        let mut x_sum = 0f32;
+        let mut y_sum = 0f32;
         for point in &self.side1 {
-            x_sum += point.0;
-            y_sum += point.1;
+            x_sum += point.x;
+            y_sum += point.y;
         }
-        let point1 = Point2::new(x_sum as f32 / self.side1.len() as f32,
-                                   y_sum as f32 / self.side1.len() as f32);
+        let point1 = Point2::new(x_sum / self.side1.len() as f32, y_sum / self.side1.len() as f32);
 
-        x_sum = 0;
-        y_sum = 0;
+        x_sum = 0f32;
+        y_sum = 0f32;
         for point in &self.side2 {
-            x_sum += point.0;
-            y_sum += point.1;
+            x_sum += point.x;
+            y_sum += point.y;
         }
-        let point2 = Point2::new(x_sum as f32 / self.side2.len() as f32,
-                                   y_sum as f32 / self.side2.len() as f32);
+        let point2 = Point2::new(x_sum / self.side2.len() as f32, y_sum / self.side2.len() as f32);
 
         self.main_line = (point1, point2);
     }
@@ -252,11 +247,13 @@ pub fn group_chokes(choke_lines: &mut Vec<((usize, usize), (usize, usize))>,
                 }
                 let check_line = choke_lines[j];
                 for k in 0..current_choke.side1.len() {
-                    let point1 = current_choke.side1[k];
+                    let s1 = current_choke.side1[k];
+                    let point1 = (s1.x as usize, s1.y as usize);
                     let mut added = false;
                     if octile_distance(check_line.0, point1) <= SQRT2 {
                         for l in 0..current_choke.side2.len() {
-                            let point2 = current_choke.side2[l];
+                            let s2 = current_choke.side2[l];
+                            let point2 = (s2.x as usize, s2.y as usize);
                             if octile_distance(check_line.1, point2) <= SQRT2 {
                                 used_indices.insert(j);
                                 if octile_distance(check_line.0, point1) > 0
@@ -271,7 +268,8 @@ pub fn group_chokes(choke_lines: &mut Vec<((usize, usize), (usize, usize))>,
                     }
                     if octile_distance(check_line.1, point1) <= SQRT2 {
                         for l in 0..current_choke.side2.len() {
-                            let point2 = current_choke.side2[l];
+                            let s2 = current_choke.side2[l];
+                            let point2 = (s2.x as usize, s2.y as usize);
                             if octile_distance(check_line.0, point2) <= SQRT2 {
                                 used_indices.insert(j);
                                 if octile_distance(check_line.1, point1) > 0
