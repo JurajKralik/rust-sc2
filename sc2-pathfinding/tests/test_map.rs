@@ -70,7 +70,7 @@ fn test_automaton_le_chokes() {
     for (i, choke) in chokes.iter().enumerate() {
         let center = choke.center();
         println!("Choke {}: Center at ({:.2}, {:.2}), {} pixels, min_length: {:.2}", 
-                i, center.x, center.y, choke.pixels.len(), choke.get_min_length());
+                i, center.0, center.1, choke.pixels.len(), choke.get_min_length());
     }
     
     // Save choke detection visualization for AutomatonLE
@@ -94,7 +94,7 @@ fn test_automaton_le_chokes_from_npy() {
             for (i, choke) in chokes.iter().take(5).enumerate() {
                 let center = choke.center();
                 println!("NPY Choke {}: Center at ({:.2}, {:.2}), {} pixels, min_length: {:.2}", 
-                        i, center.x, center.y, choke.pixels.len(), choke.get_min_length());
+                        i, center.0, center.1, choke.pixels.len(), choke.get_min_length());
             }
             
             // Save choke detection visualization using .npy data
@@ -130,7 +130,7 @@ fn test_submarine_le_chokes_from_npy() {
             for (i, choke) in chokes.iter().take(5).enumerate() {
                 let center = choke.center();
                 println!("NPY Choke {}: Center at ({:.2}, {:.2}), {} pixels, min_length: {:.2}", 
-                        i, center.x, center.y, choke.pixels.len(), choke.get_min_length());
+                        i, center.0, center.1, choke.pixels.len(), choke.get_min_length());
             }
             
             // Save choke detection visualization using .npy data

@@ -69,7 +69,7 @@ pub mod prelude {
 		consts::{ALL_PRODUCERS, PRODUCERS, RESEARCHERS, TECH_REQUIREMENTS},
 		distance::{Center, Distance, DistanceIterator, DistanceSlice},
 		game_state::Alliance,
-		geometry::Point2,
+		geometry::{Point2, ChokeExt},
 		ids::*,
 		player::{AIBuild, Computer, Difficulty, GameResult, Race},
 		unit::Unit,

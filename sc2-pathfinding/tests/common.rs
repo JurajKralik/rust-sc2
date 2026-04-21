@@ -440,8 +440,8 @@ pub fn save_choke_image(
     for choke in chokes {
         // Draw choke center with corrected coordinate mapping
         let center = choke.center();
-        let center_x = center.x as usize;
-        let center_y = center.y as usize;
+        let center_x = center.0 as usize;
+        let center_y = center.1 as usize;
         
         // Use swapped coordinates: choke coordinates (center_x,center_y) map to image coordinates (center_y,center_x)
         for dy in 0..scale {

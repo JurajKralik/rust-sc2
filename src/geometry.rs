@@ -608,3 +608,39 @@ impl Radius for Point2 {}
 impl Radius for &Point2 {}
 impl Radius for Point3 {}
 impl Radius for &Point3 {}
+
+/// Extension trait on [`sc2pathfinding::Choke`] that converts its `(f32, f32)` fields
+/// into [`Point2`] values from this crate.
+///
+/// Import via `use rust_sc2::prelude::*` or `use rust_sc2::geometry::ChokeExt`.
+pub trait ChokeExt {
+	/// Center of the choke (midpoint of `main_line`) as [`Point2`].
+	fn center_p2(&self) -> Point2;
+	/// Main line endpoints as [`Point2`].
+	fn main_line_p2(&self) -> (Point2, Point2);
+	/// Side-1 border points as [`Vec<Point2>`].
+	fn side1_p2(&self) -> Vec<Point2>;
+	/// Side-2 border points as [`Vec<Point2>`].
+	fn side2_p2(&self) -> Vec<Point2>;
+	/// All individual lines as [`Vec<(Point2, Point2)>`].
+	fn lines_p2(&self) -> Vec<(Point2, Point2)>;
+}
+
+impl ChokeExt for sc2pathfinding::Choke {
+	fn center_p2(&self) -> Point2 {
+		self.center().into()
+	}
+	fn main_line_p2(&self) -> (Point2, Point2) {
+		let (a, b) = self.main_line();
+		(a.into(), b.into())
+	}
+	fn side1_p2(&self) -> Vec<Point2> {
+		self.side1().iter().copied().map(Point2::from).collect()
+	}
+	fn side2_p2(&self) -> Vec<Point2> {
+		self.side2().iter().copied().map(Point2::from).collect()
+	}
+	fn lines_p2(&self) -> Vec<(Point2, Point2)> {
+		self.lines().iter().map(|&(a, b)| (a.into(), b.into())).collect()
+	}
+}
