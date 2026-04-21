@@ -1,3 +1,4 @@
+use crate::helpers::Point2;
 use crate::mapping::map_point;
 use crate::path_find::pos::{NormalPosAPI, Pos, PositionAPI};
 use crate::path_find::pos::{DIAGONAL_MINUS_CARDINAL, MULT, MULTF32, SQRT2};
@@ -95,7 +96,7 @@ pub fn solve_chokes(points: &mut Vec<Vec<map_point::MapPoint>>,
 
 #[derive(Clone)]
 pub struct Choke {
-    pub main_line: ((f32, f32), (f32, f32)),
+    pub main_line: (Point2, Point2),
     pub lines: Vec<((usize, usize), (usize, usize))>,
     pub side1: Vec<(usize, usize)>,
     pub side2: Vec<(usize, usize)>,
@@ -106,18 +107,14 @@ impl Choke {
     pub fn lines(&self) -> &Vec<((usize, usize), (usize, usize))> { &self.lines }
     pub fn side1(&self) -> &Vec<(usize, usize)> { &self.side1 }
     pub fn side2(&self) -> &Vec<(usize, usize)> { &self.side2 }
-    pub fn main_line(&self) -> ((f32, f32), (f32, f32)) { self.main_line }
+    pub fn main_line(&self) -> (Point2, Point2) { self.main_line }
     pub fn pixels(&self) -> &Vec<(usize, usize)> { &self.pixels }
 
     pub fn get_min_length(&self) -> f32 { self.min_length }
 
-    /// Returns the center point of the choke (midpoint of the main line)
-    pub fn center(&self) -> (f32, f32) {
-        let line = self.main_line();
-        (
-            (line.0.0 + line.1.0) / 2.0,
-            (line.0.1 + line.1.1) / 2.0
-        )
+    /// Returns the center point of the choke (midpoint of the main line).
+    pub fn center(&self) -> Point2 {
+        self.main_line.0.midpoint(self.main_line.1)
     }
 }
 
@@ -131,7 +128,8 @@ impl Choke {
         side2.push(line.1);
         let pixels = Vec::<(usize, usize)>::new();
         // Real main line is created later on by calculating averages
-        let main_line = (((line.0).0 as f32, (line.0).1 as f32), ((line.1).0 as f32, (line.1).1 as f32));
+        let main_line = (Point2::new((line.0).0 as f32, (line.0).1 as f32),
+                         Point2::new((line.1).0 as f32, (line.1).1 as f32));
         let min_length = distance(line.0, line.1);
         Choke { main_line,
                 lines,
@@ -215,7 +213,8 @@ impl Choke {
             x_sum += point.0;
             y_sum += point.1;
         }
-        let point1 = (x_sum as f32 / self.side1.len() as f32, y_sum as f32 / self.side1.len() as f32);
+        let point1 = Point2::new(x_sum as f32 / self.side1.len() as f32,
+                                   y_sum as f32 / self.side1.len() as f32);
 
         x_sum = 0;
         y_sum = 0;
@@ -223,7 +222,8 @@ impl Choke {
             x_sum += point.0;
             y_sum += point.1;
         }
-        let point2 = (x_sum as f32 / self.side2.len() as f32, y_sum as f32 / self.side2.len() as f32);
+        let point2 = Point2::new(x_sum as f32 / self.side2.len() as f32,
+                                   y_sum as f32 / self.side2.len() as f32);
 
         self.main_line = (point1, point2);
     }

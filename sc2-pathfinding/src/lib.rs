@@ -9,3 +9,4 @@ pub use mapping::map::Map;
 pub use mapping::vision::VisionUnit;
 pub use mapping::chokes::Choke;
 pub use path_find::PathFind;
+pub use helpers::Point2;

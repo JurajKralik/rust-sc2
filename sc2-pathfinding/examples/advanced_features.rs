@@ -59,7 +59,7 @@ fn main() {
     for (i, choke) in chokes.iter().enumerate() {
         let main_line = choke.main_line();
         println!("  Choke {}: from ({:.1}, {:.1}) to ({:.1}, {:.1}), min width: {:.2}",
-                i, main_line.0.0, main_line.0.1, main_line.1.0, main_line.1.1, choke.min_length);
+                i, main_line.0.x, main_line.0.y, main_line.1.x, main_line.1.y, choke.min_length);
     }
     
     // Example 3: Add influence mapping for enemy units
